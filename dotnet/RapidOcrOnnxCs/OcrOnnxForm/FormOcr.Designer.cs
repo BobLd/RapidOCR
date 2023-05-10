@@ -219,7 +219,7 @@
             this.detNameTextBox.Name = "detNameTextBox";
             this.detNameTextBox.Size = new System.Drawing.Size(489, 21);
             this.detNameTextBox.TabIndex = 12;
-            this.detNameTextBox.Text = "ch_PP-OCRv3_det_infer.onnx";
+            this.detNameTextBox.Text = "en_PP-OCRv3_det_infer.onnx";
             // 
             // label10
             // 
@@ -253,7 +253,7 @@
             this.recNameTextBox.Name = "recNameTextBox";
             this.recNameTextBox.Size = new System.Drawing.Size(489, 21);
             this.recNameTextBox.TabIndex = 16;
-            this.recNameTextBox.Text = "ch_PP-OCRv3_rec_infer.onnx";
+            this.recNameTextBox.Text = "en_PP-OCRv3_rec_infer.onnx";
             // 
             // label12
             // 
@@ -270,7 +270,7 @@
             this.keysNameTextBox.Name = "keysNameTextBox";
             this.keysNameTextBox.Size = new System.Drawing.Size(489, 21);
             this.keysNameTextBox.TabIndex = 18;
-            this.keysNameTextBox.Text = "ppocr_keys_v1.txt";
+            this.keysNameTextBox.Text = "en_dict.txt"; //"ppocr_keys_v1.txt";
             // 
             // label5
             // 
@@ -571,7 +571,7 @@
             this.initBtn.Name = "initBtn";
             this.initBtn.Size = new System.Drawing.Size(74, 91);
             this.initBtn.TabIndex = 15;
-            this.initBtn.Text = "重新初始化";
+            this.initBtn.Text = "Reinitialize"; // 重新初始化
             this.initBtn.UseVisualStyleBackColor = true;
             this.initBtn.Click += new System.EventHandler(this.initBtn_Click);
             // 
@@ -580,7 +580,7 @@
             this.ocrResultTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.ocrResultTextBox.Font = new System.Drawing.Font("宋体", 9F);
+            this.ocrResultTextBox.Font = new System.Drawing.Font("Times New Roman", 9F); // 宋体
             this.ocrResultTextBox.Location = new System.Drawing.Point(14, 503);
             this.ocrResultTextBox.Multiline = true;
             this.ocrResultTextBox.Name = "ocrResultTextBox";

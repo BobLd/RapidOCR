@@ -36,22 +36,22 @@ namespace BaiPiaoOcrOnnxCs
             bool isDetExists = File.Exists(detPath);
             if (!isDetExists)
             {
-                MessageBox.Show("模型文件不存在:" + detPath);
+                MessageBox.Show("Model file does not exist:" + detPath); // 模型文件不存在
             }
             bool isClsExists = File.Exists(clsPath);
             if (!isClsExists)
             {
-                MessageBox.Show("模型文件不存在:" + clsPath);
+                MessageBox.Show("Model file does not exist:" + clsPath); // 模型文件不存在
             }
             bool isRecExists = File.Exists(recPath);
             if (!isRecExists)
             {
-                MessageBox.Show("模型文件不存在:" + recPath);
+                MessageBox.Show("Model file does not exist:" + recPath); // 模型文件不存在
             }
             bool isKeysExists = File.Exists(recPath);
             if (!isKeysExists)
             {
-                MessageBox.Show("Keys文件不存在:" + keysPath);
+                MessageBox.Show("Keys file does not exist:" + keysPath); // Keys文件不存在
             }
             if (isDetExists && isClsExists && isRecExists && isKeysExists)
             {
@@ -60,10 +60,11 @@ namespace BaiPiaoOcrOnnxCs
             }
             else
             {
-                MessageBox.Show("初始化失败，请确认模型文件夹和文件后，重新初始化！");
+                MessageBox.Show("Initialization failed, please confirm the model folder and files, and re-initialize!"); // 初始化失败，请确认模型文件夹和文件后，重新初始化！
             }
         }
 
+        // https://github.com/PaddlePaddle/PaddleOCR/blob/release/2.6/deploy/lite/readme.md
         private void initBtn_Click(object sender, EventArgs e)
         {
             string modelsDir = modelsTextBox.Text;
@@ -74,22 +75,22 @@ namespace BaiPiaoOcrOnnxCs
             bool isDetExists = File.Exists(detPath);
             if (!isDetExists)
             {
-                MessageBox.Show("模型文件不存在:" + detPath);
+                MessageBox.Show("Model file does not exist:" + detPath); // 模型文件不存在
             }
             bool isClsExists = File.Exists(clsPath);
             if (!isClsExists)
             {
-                MessageBox.Show("模型文件不存在:" + clsPath);
+                MessageBox.Show("Model file does not exist:" + clsPath); // 模型文件不存在
             }
             bool isRecExists = File.Exists(recPath);
             if (!isRecExists)
             {
-                MessageBox.Show("模型文件不存在:" + recPath);
+                MessageBox.Show("Model file does not exist:" + recPath); // 模型文件不存在
             }
             bool isKeysExists = File.Exists(recPath);
             if (!isKeysExists)
             {
-                MessageBox.Show("Keys文件不存在:" + keysPath);
+                MessageBox.Show("Keys file does not exist:" + keysPath); // Keys文件不存在
             }
             if (isDetExists && isClsExists && isRecExists && isKeysExists)
             {
@@ -98,7 +99,7 @@ namespace BaiPiaoOcrOnnxCs
             }
             else
             {
-                MessageBox.Show("初始化失败，请确认模型文件夹和文件后，重新初始化！");
+                MessageBox.Show("Initialization failed, please confirm the model folder and files, and re-initialize!"); // 初始化失败，请确认模型文件夹和文件后，重新初始化
             }
         }
 
@@ -133,13 +134,13 @@ namespace BaiPiaoOcrOnnxCs
         {
             if (ocrEngin == null)
             {
-                MessageBox.Show("未初始化，无法执行!");
+                MessageBox.Show("Uninitialized, cannot execute!"); // 未初始化，无法执行!
                 return;
             }
             string targetImg = pathTextBox.Text;
             if (!File.Exists(targetImg))
             {
-                MessageBox.Show("目标图片不存在，请用Open按钮打开");
+                MessageBox.Show("The target picture does not exist, please use the Open button to open"); // 目标图片不存在，请用Open按钮打开
                 return;
             }
             int padding = (int)paddingNumeric.Value;
