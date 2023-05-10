@@ -23,11 +23,17 @@ namespace BaiPiaoOcrOnnxCs
             InitializeComponent();
         }
 
+        private const string _modelsFolderName = "models";
+
         private void Form1_Load(object sender, EventArgs e)
         {
             string appPath = AppDomain.CurrentDomain.BaseDirectory;
-            string appDir = Directory.GetParent(appPath).FullName;
-            string modelsDir = appPath + "models";
+            string rootDir = Directory.GetParent(appPath).Parent.Parent.Parent.Parent.FullName;
+            string modelsDir = Path.Combine(rootDir, _modelsFolderName);
+            if (!Directory.Exists(modelsDir))
+            {
+                modelsDir = Path.Combine(appPath, _modelsFolderName);
+            }
             modelsTextBox.Text = modelsDir;
             string detPath = modelsDir + "\\" + detNameTextBox.Text;
             string clsPath = modelsDir + "\\" + clsNameTextBox.Text;

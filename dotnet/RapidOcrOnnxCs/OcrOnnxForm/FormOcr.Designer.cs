@@ -1,4 +1,6 @@
-﻿namespace BaiPiaoOcrOnnxCs
+﻿using System;
+
+namespace BaiPiaoOcrOnnxCs
 {
     partial class FormOcr
     {
@@ -198,11 +200,13 @@
             this.numThreadNumeric.Name = "numThreadNumeric";
             this.numThreadNumeric.Size = new System.Drawing.Size(489, 21);
             this.numThreadNumeric.TabIndex = 4;
-            this.numThreadNumeric.Value = new decimal(new int[] {
-            4,
-            0,
-            0,
-            0});
+            this.numThreadNumeric.Value = Environment.ProcessorCount; // Not the same but...
+
+            //    new decimal(new int[] {
+            //4,
+            //0,
+            //0,
+            //0});
             // 
             // label6
             // 
