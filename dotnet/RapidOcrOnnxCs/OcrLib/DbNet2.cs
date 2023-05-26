@@ -300,13 +300,20 @@ namespace OcrLiteLib
             }
 
             Point[][] contours = new Point[manager.Blobs.Count][];
-            for (int b = 0; b < manager.Blobs.Count; b++)//var blob in manager.Blobs)
+            for (int b = 0; b < manager.Blobs.Count; b++)
             {
                 HashSet<Point> points = new HashSet<Point>();
                 foreach (var run in manager.Blobs[b].rowRuns.OrderBy(r => r.Row))
                 {
-                    points.Add(new Point(run.Start, run.Row));
-                    points.Add(new Point(run.End, run.Row));
+                    if (run.Start == run.End)
+                    {
+                        points.Add(new Point(run.Start, run.Row));
+                    }
+                    else
+                    {
+                        points.Add(new Point(run.Start, run.Row));
+                        points.Add(new Point(run.End, run.Row));
+                    }
                 }
                 contours[b] = points.ToArray();
             }
@@ -319,132 +326,6 @@ namespace OcrLiteLib
                            .ToArray();
 
             return new VectorOfVectorOfPoint(envelops);
-        }
-
-
-        private static VectorOfVectorOfPoint FindContours2(byte[] array, int rows, int cols)
-        {
-            Dictionary<int, int> link = new Dictionary<int, int>();
-            Dictionary<int, List<Point>> groups = new Dictionary<int, List<Point>>();
-
-            for (int r = 0; r < rows - 1; r++)
-            {
-                HashSet<int> rowIndexes = new HashSet<int>();
-
-                int rowOffset = r * cols;
-                int nextRowOffset = (r + 1) * cols;
-
-                for (int c = 0; c < cols - 1; c++)
-                {
-                    int offset = rowOffset + c;
-                    if (array[offset] == byte.MinValue)
-                    {
-                        continue;
-                    }
-
-                    if (!link.ContainsKey(offset) && !groups.ContainsKey(offset))
-                    {
-                        var list = new List<Point>() { new Point(c, r) };
-                        groups.Add(offset, list);
-                        link.Add(offset, offset);
-                    }
-
-                    int offsetE = offset + 1;
-                    if (array[offsetE] != byte.MinValue && !link.ContainsKey(offsetE))
-                    {
-                        if (TryFindIndex(link, offset, out int index))
-                        {
-                            rowIndexes.Add(index);
-                            link.Add(offsetE, index);
-                            groups[index].Add(new Point(c + 1, r));
-                        }
-                        else
-                        {
-                            link.Add(offsetE, offset);
-                            groups[offset].Add(new Point(c + 1, r));
-                        }
-                    }
-
-                    int offsetS = nextRowOffset + c;
-                    if (array[offsetS] != byte.MinValue && !link.ContainsKey(offsetS))
-                    {
-                        if (TryFindIndex(link, offset, out int index))
-                        {
-                            rowIndexes.Add(index);
-                            link.Add(offsetS, index);
-                            groups[index].Add(new Point(c, r + 1));
-                        }
-                        else
-                        {
-                            link.Add(offsetS, offset);
-                            groups[offset].Add(new Point(c, r + 1));
-                        }
-                    }
-
-                    int offsetSE = offsetS + 1;
-                    if (array[offsetSE] != byte.MinValue && !link.ContainsKey(offsetSE))
-                    {
-                        if (TryFindIndex(link, offset, out int index))
-                        {
-                            rowIndexes.Add(index);
-                            link.Add(offsetSE, index);
-                            groups[index].Add(new Point(c + 1, r + 1));
-                        }
-                        else
-                        {
-                            link.Add(offsetSE, offset);
-                            groups[offset].Add(new Point(c + 1, r + 1));
-                        }
-                    }
-                }
-                
-                if (rowIndexes.Count > 1)
-                {
-                    int[] localIndexesArr = rowIndexes.ToArray();
-                    int pivot = localIndexesArr[0];
-
-                    for (int i = 1; i < localIndexesArr.Length; i++)
-                    {
-                        int current = localIndexesArr[i];
-                        if (groups.TryGetValue(current, out var toRemove))
-                        {
-                            groups.Remove(current);
-                            groups[pivot].AddRange(toRemove);
-                        }
-
-                        foreach (var key in link.Keys.ToArray())
-                        {
-                            if (link[key] == current)
-                            {
-                                link[key] = pivot;
-                            }
-                        }
-                    }
-                }
-
-            }
-
-            var envelops = groups.Values.Where(g => g.Count > 3)
-                            .Select(g => GrahamScan(g).ToArray())
-                            .Where(gr => gr.Length > 3)
-                            .OrderBy(gr => gr[0].X)
-                            .ThenByDescending(gr => gr[0].Y)
-                            .ToArray();
-
-            return new VectorOfVectorOfPoint(envelops);
-        }
-
-        private static bool TryFindIndex(Dictionary<int, int> link, int offset, out int index)
-        {
-            bool found = false;
-            index = offset;
-            while (link.TryGetValue(index, out int newIndex))
-            {
-                found = true;
-                if (index == newIndex) break;
-                index = newIndex;
-            }
-            return found;
         }
 
         /// <summary>
@@ -563,10 +444,9 @@ namespace OcrLiteLib
             imgeOrigenal.Save("dilateMat.bmp");
 
             VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-
             CvInvoke.FindContours(dilateMat, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
 
-            contours = FindContours(dilateMat.GetData().Cast<byte>().ToArray(), rows, cols);
+            //VectorOfVectorOfPoint contours = FindContours(dilateMat.GetData().Cast<byte>().ToArray(), rows, cols);
 
             for (int i = 0; i < contours.Size; i++)
             {
