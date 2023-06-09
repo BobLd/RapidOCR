@@ -75,7 +75,7 @@ namespace OcrLiteLib
             return null;
         }
 
-        private class RowRun
+        private sealed class RowRun
         {
             public int Row { get; set; }
 
@@ -101,7 +101,7 @@ namespace OcrLiteLib
             }
         }
 
-        private class Blob
+        private sealed class Blob
         {
             public readonly List<RowRun> rowRuns = new List<RowRun>();
 
@@ -181,7 +181,7 @@ namespace OcrLiteLib
             }
         }
 
-        private class ContourExtractor
+        private sealed class ContourExtractor
         {
             private readonly int totalCols;
             private readonly List<RowRun> currentRowRowRuns = new List<RowRun>();
@@ -443,10 +443,10 @@ namespace OcrLiteLib
             Image<Bgr, Byte> imgeOrigenal = dilateMat.Clone().ToImage<Bgr, Byte>();
             imgeOrigenal.Save("dilateMat.bmp");
 
-            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-            CvInvoke.FindContours(dilateMat, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
+            //VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+            //CvInvoke.FindContours(dilateMat, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
 
-            //VectorOfVectorOfPoint contours = FindContours(dilateMat.GetData().Cast<byte>().ToArray(), rows, cols);
+            VectorOfVectorOfPoint contours = FindContours(dilateMat.GetData().Cast<byte>().ToArray(), rows, cols);
 
             for (int i = 0; i < contours.Size; i++)
             {
@@ -739,6 +739,5 @@ namespace OcrLiteLib
             box.RemoveAt(count - 1);
             return length;
         }
-
     }
 }
