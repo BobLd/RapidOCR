@@ -68,11 +68,13 @@ namespace OcrLib7Console
                     ColorType = SKColorType.Gray8
                 }, rawPixels);
 
+#if DEBUG
                 using (var fs = new FileStream("debug.png", FileMode.Create))
                 using (SKData d = skImage.Encode(SKEncodedImageFormat.Png, 100))
                 {
                     d.SaveTo(fs);
                 }
+#endif
 
                 // Remove padding
                 double scale = DbNetBitmap.Size / (double)Math.Max(result.OriginalWidth, result.OriginalHeight);
@@ -94,19 +96,23 @@ namespace OcrLib7Console
                     crop = new SKRectI(padding, 0, DbNetBitmap.Size - padding, DbNetBitmap.Size);
                 }
 
-                // Dilate
+                // Dilate - TODO Not GRAy8 anymore, we need to fix that
                 SKImage croppedDilated = skImage.ApplyImageFilter(SKImageFilter.CreateDilate(2, 2),
                     crop,
                     crop,
                     out _, out SKPointI _);
-
                 skImage.Dispose();
 
+#if DEBUG
                 using (var fs = new FileStream("debug_cropped_dilate.png", FileMode.Create))
                 using (SKData d = croppedDilated.Encode(SKEncodedImageFormat.Png, 100))
                 {
                     d.SaveTo(fs);
                 }
+#endif
+                
+                var contours = ContourHelper.FindContours(croppedDilated.EncodedData.ToArray(), croppedDilated.Height, croppedDilated.Width); // Todo use Span
+
             }
         }
     }
