@@ -4,7 +4,7 @@ namespace OcrLib7Console
 {
     public static class ContourHelper
     {
-        private sealed class RowRun
+        private sealed record RowRun
         {
             public int Row { get; set; }
 
@@ -30,9 +30,9 @@ namespace OcrLib7Console
             }
         }
 
-        private sealed class Blob
+        private sealed record Blob
         {
-            public readonly List<RowRun> rowRuns = new List<RowRun>();
+            public readonly List<RowRun> RowRuns = new List<RowRun>();
 
             public int StartRow { get; private set; } = -1;
 
@@ -63,7 +63,7 @@ namespace OcrLib7Console
                     EndColumn = rowRun.End;
                 }
 
-                rowRuns.Add(rowRun);
+                RowRuns.Add(rowRun);
             }
 
             public void Add(Blob blob)
@@ -88,25 +88,17 @@ namespace OcrLib7Console
                     EndColumn = blob.EndColumn;
                 }
 
-                rowRuns.AddRange(blob.rowRuns);
+                RowRuns.AddRange(blob.RowRuns);
             }
 
             public bool IsOverlap(RowRun other)
             {
-                if (this.StartColumn > other.End || other.Start > this.EndColumn)
-                {
-                    return false;
-                }
-                return true;
+                return this.StartColumn <= other.End && other.Start <= this.EndColumn;
             }
 
             public bool IsOverlap(Blob other)
             {
-                if (this.StartColumn > other.EndColumn || other.StartColumn > this.EndColumn)
-                {
-                    return false;
-                }
-                return true;
+                return this.StartColumn <= other.EndColumn && other.StartColumn <= this.EndColumn;
             }
         }
 
@@ -115,7 +107,7 @@ namespace OcrLib7Console
             private readonly int totalCols;
             private readonly List<RowRun> currentRowRowRuns = new List<RowRun>();
             private readonly List<Blob> blobs = new List<Blob>();
-            private RowRun current;
+            private RowRun? current;
 
             public IReadOnlyList<Blob> Blobs => blobs;
 
@@ -232,7 +224,7 @@ namespace OcrLib7Console
             for (int b = 0; b < manager.Blobs.Count; b++)
             {
                 HashSet<Point> points = new HashSet<Point>();
-                foreach (var run in manager.Blobs[b].rowRuns.OrderBy(r => r.Row))
+                foreach (var run in manager.Blobs[b].RowRuns.OrderBy(r => r.Row))
                 {
                     if (run.Start == run.End)
                     {
@@ -256,7 +248,6 @@ namespace OcrLib7Console
 
             return envelops;
         }
-
 
         /// <summary>
         /// Algorithm to find the convex hull of the set of points with time complexity O(n log n).
@@ -333,6 +324,5 @@ namespace OcrLib7Console
         {
             return (point2.X - point1.X) * (point3.Y - point1.Y) > (point2.Y - point1.Y) * (point3.X - point1.X);
         }
-
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Microsoft.ML.Data;
-using Microsoft.ML.Transforms.Image;
 
 namespace OcrLib7Console
 {
@@ -14,9 +13,5 @@ namespace OcrLib7Console
 
         [ColumnName("height")]
         public int OriginalHeight { get; set; }
-
-        //[ColumnName("result")]
-        //[ImageType(DbNetBitmap.Size, DbNetBitmap.Size)]
-        //public MLImage Image { get; set; }
     }
 }
