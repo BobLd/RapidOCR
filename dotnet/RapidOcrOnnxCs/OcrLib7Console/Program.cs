@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Drawing;
 using System.Runtime.InteropServices;
 using Microsoft.ML;
 using Microsoft.ML.Data;
@@ -16,39 +15,45 @@ namespace OcrLib7Console
 
         private const string modelPath = @"C:\Users\Bob\Document Layout Analysis\RapidOCR\RapidOCR\dotnet\RapidOcrOnnxCs\models\en_PP-OCRv3_det_infer.onnx";
 
-        private const string imageTestPath = @"C:\Users\Bob\Document Layout Analysis\text samples\5090.FontNameList.1_raw.png";
-        //private const string imageTestPath = @"C:\Users\Bob\Document Layout Analysis\text samples\1.1_raw.png";
+        //private const string imageTestPath = @"C:\Users\Bob\Document Layout Analysis\text samples\5090.FontNameList.1_raw.png";
+        private const string imageTestPath = @"C:\Users\Bob\Document Layout Analysis\text samples\1.1_raw.png";
         //private const string imageTestPath = @"C:\Users\Bob\Document Layout Analysis\text samples\68-1990-01_A.2_raw.png";
         //private const string imageTestPath = @"C:\Users\Bob\Document Layout Analysis\text samples\5090.FontNameList.2_raw.png";
 
+        private static readonly float[] MeanValues = { 0.485F * 255F, 0.456F * 255F, 0.406F * 255F };
+        private static readonly float[] NormValues = { 1.0F / 0.229F / 255.0F, 1.0F / 0.224F / 255.0F, 1.0F / 0.225F / 255.0F };
+
         static void Main(string[] args)
         {
+            var sw = Stopwatch.StartNew();
             MLContext mlContext = new MLContext();
 
             // Define scoring pipeline
-            var pipeline = mlContext.Transforms.ResizeImages(inputColumnName: "bitmap", outputColumnName: "x", imageWidth: DbNetBitmap.Size, imageHeight: DbNetBitmap.Size, resizing: ResizingKind.IsoPad)
-                            .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "x", scaleImage: 1f / 255f, orderOfExtraction: ColorsOrder.ABGR))
-                            .Append(mlContext.Transforms.ApplyOnnxModel(shapeDictionary: new Dictionary<string, int[]>()
-                            {
-                                { "x", new[] { 1, 3, DbNetBitmap.Size, DbNetBitmap.Size } },
-                                { "sigmoid_0.tmp_0", new[] { 1, 1, DbNetBitmap.Size, DbNetBitmap.Size } }
-                            },
-                            inputColumnNames: new[] { "x" },
-                            outputColumnNames: new[] { "sigmoid_0.tmp_0" },
-                            modelFile: modelPath,
-                            recursionLimit: 100));
-            //.Append(mlContext.Transforms.Concatenate("result", new string[] { "sigmoid_0.tmp_0", "sigmoid_0.tmp_0", "sigmoid_0.tmp_0", "sigmoid_0.tmp_0" }))
-            //.Append(mlContext.Transforms.ConvertToImage(imageHeight: DbNetBitmap.Size, imageWidth: DbNetBitmap.Size,
-            //        outputColumnName: "result", inputColumnName: "result", colorsPresent: ColorBits.All, orderOfColors: ColorsOrder.ARGB,
-            //        interleavedColors: false,
-            //        scaleImage: 255))
-            //.Append(mlContext.Transforms.ConvertToGrayscale(outputColumnName: "result", inputColumnName: "result"));
+            var pipeline = mlContext.Transforms.ResizeImages(outputColumnName: "x", imageWidth: DbNetBitmap.Size, imageHeight: DbNetBitmap.Size, inputColumnName: "x", resizing: ResizingKind.IsoPad)
+                            .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "x", orderOfExtraction: ColorsOrder.ABGR, offsetImage: MeanValues.Average(), scaleImage: NormValues.Average())) // TODO - using average is not correct
+                            .Append(mlContext.Transforms.ApplyOnnxModel(
+                                outputColumnNames: new[] { "sigmoid_0.tmp_0" },
+                                inputColumnNames: new[] { "x" },
+                                modelFile: modelPath,
+                                shapeDictionary: new Dictionary<string, int[]>()
+                                {
+                                    { "x", new[] { 1, 3, DbNetBitmap.Size, DbNetBitmap.Size } },
+                                    { "sigmoid_0.tmp_0", new[] { 1, 1, DbNetBitmap.Size, DbNetBitmap.Size } }
+                                },
+                                recursionLimit: 100));
+            Console.WriteLine($"Pipeline loaded in {sw.ElapsedMilliseconds}ms");
+
+            sw.Restart();
 
             // Fit on empty list to obtain input data schema
             var model = pipeline.Fit(mlContext.Data.LoadFromEnumerable(new List<DbNetBitmap>()));
+            Console.WriteLine($"Pipeline fitted in {sw.ElapsedMilliseconds}ms");
+
+            sw.Restart();
 
             // Create prediction engine
             var engine = mlContext.Model.CreatePredictionEngine<DbNetBitmap, DbNetResult>(model);
+            Console.WriteLine($"Prediction engine created in {sw.ElapsedMilliseconds}ms");
 
             using (var image = MLImage.CreateFromFile(imageTestPath))
             {
@@ -57,44 +62,18 @@ namespace OcrLib7Console
                     Image = image
                 };
 
-                var sw = Stopwatch.StartNew();
+                sw.Restart();
                 DbNetResult result = engine.Predict(dbNetBitmap);
                 Console.WriteLine($"Processing done in {sw.ElapsedMilliseconds}ms");
 
-                Point[][]? contours = GetTextBox(result);
+                SKPointI[][]? boxes = GetTextBox(result);
             }
         }
 
-        public static Point[][]? GetTextBox(DbNetResult result)
+        public static SKPointI[][]? GetTextBox(DbNetResult result)
         {
             var sw = Stopwatch.StartNew();
-            Point[][]? contours;
 
-            byte[] rawPixels = new byte[result.Result.Length];
-            for (int i = 0; i < result.Result.Length; i++)
-            {
-                // Thresolding
-                rawPixels[i] = result.Result[i] > boxThresh ? byte.MaxValue : byte.MinValue;
-            }
-
-            // No need to scale back, we just need to un-pad
-            SKImage skImage = SKImage.FromPixelCopy(new SKImageInfo()
-            {
-                Height = DbNetBitmap.Size,
-                Width = DbNetBitmap.Size,
-                AlphaType = SKAlphaType.Opaque,
-                ColorType = SKColorType.Gray8
-            }, rawPixels);
-
-#if DEBUG
-            using (var fs = new FileStream("debug.png", FileMode.Create))
-            using (SKData d = skImage.Encode(SKEncodedImageFormat.Png, 100))
-            {
-                d.SaveTo(fs);
-            }
-#endif
-
-            // Remove padding
             double scale = DbNetBitmap.Size / (double)Math.Max(result.OriginalWidth, result.OriginalHeight);
 
             int scaledWidth = Convert.ToInt32(result.OriginalWidth * scale);
@@ -114,16 +93,15 @@ namespace OcrLib7Console
                 crop = new SKRectI(padding, 0, DbNetBitmap.Size - padding, DbNetBitmap.Size);
             }
 
-            // Dilate - (NB: croppedDilated is not Gray8 anymore)
-            SKImage croppedDilatedSubset;
-            using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
-            using (SKImage croppedDilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI subset, out SKPointI offset))
-            {
-                croppedDilatedSubset = croppedDilated.Subset(subset);
-            }
-            skImage.Dispose();
-
             var gray8 = new SKImageInfo()
+            {
+                Height = DbNetBitmap.Size,
+                Width = DbNetBitmap.Size,
+                AlphaType = SKAlphaType.Opaque,
+                ColorType = SKColorType.Gray8
+            };
+
+            var gray8Scaled = new SKImageInfo()
             {
                 Height = scaledHeight,
                 Width = scaledWidth,
@@ -131,25 +109,42 @@ namespace OcrLib7Console
                 ColorType = SKColorType.Gray8
             };
 
-            nint _buffer = Marshal.AllocHGlobal(gray8.BytesSize);
-            croppedDilatedSubset.ReadPixels(gray8, _buffer);
-            croppedDilatedSubset.Dispose();
-
-            using (var finalBmp = new SKBitmap())
+            byte[] rawPixels = new byte[result.Result.Length];
+            for (int i = 0; i < result.Result.Length; i++)
             {
-                finalBmp.InstallPixels(gray8, _buffer);
+                // Thresolding
+                rawPixels[i] = result.Result[i] > boxThresh ? byte.MaxValue : byte.MinValue;
+            }
+
+            // No need to scale back yet, we just need to un-pad
+
+            nint buffer = Marshal.AllocHGlobal(gray8Scaled.BytesSize);
+
+            using (var skImage = SKImage.FromPixelCopy(gray8, rawPixels)) // use pointer?
+            using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
+            using (var croppedDilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI subset, out SKPointI offset)) // Dilate
+            using (var croppedDilatedSubset = croppedDilated.Subset(subset)) // Trim image due to dilate
+            {
+                // Store in buffer in Gray8 (NB: croppedDilated is not Gray8 anymore)
+                croppedDilatedSubset.ReadPixels(gray8Scaled, buffer);
+            }
+
+            SKPointI[][]? contours = ContourHelper.FindBoxes(buffer, gray8Scaled.Height, gray8Scaled.Width);
 
 #if DEBUG
+            using (var finalBmp = new SKBitmap())
+            {
+                finalBmp.InstallPixels(gray8Scaled, buffer);
                 using (var fs = new FileStream("debug_cropped_dilate_gray8.png", FileMode.Create))
                 using (SKData d = finalBmp.Encode(SKEncodedImageFormat.Png, 100))
                 {
                     d.SaveTo(fs);
                 }
-#endif
-
-                contours = ContourHelper.FindContours(finalBmp.Bytes, finalBmp.Height, finalBmp.Width); // Todo use Span
             }
-            Marshal.FreeHGlobal(_buffer);
+#endif
+            Marshal.FreeHGlobal(buffer);
+
+            // TODO - get boxes
 
             // TODO - Scale back to page size
 

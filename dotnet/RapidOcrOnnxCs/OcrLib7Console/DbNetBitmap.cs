@@ -5,9 +5,9 @@ namespace OcrLib7Console
 {
     public sealed class DbNetBitmap
     {
-        public const int Size = 20 * 64; // Not all sizes seem to work, multiples of 64 apparently ok
+        public const int Size = 16 * 64; // Not all sizes seem to work, multiples of 64 apparently ok (20)
 
-        [ColumnName("bitmap")]
+        [ColumnName("x")]
         [ImageType(Size, Size)]
         public MLImage Image { get; set; }
 
