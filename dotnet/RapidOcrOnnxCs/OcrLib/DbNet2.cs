@@ -5,7 +5,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ClipperLib;
 using Emgu.CV;
-using Emgu.CV.Util;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OcrLib;
@@ -43,8 +42,8 @@ namespace OcrLiteLib
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message + ex.StackTrace);
-                throw ex;
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
+                throw;
             }
         }
 
@@ -63,8 +62,7 @@ namespace OcrLiteLib
                 {
                     var resultsArray = results.ToArray();
                     Console.WriteLine(resultsArray);
-                    var textBoxes = GetTextBoxes(resultsArray, srcResize.Rows, srcResize.Cols, scale, boxScoreThresh, boxThresh, unClipRatio);
-                    return textBoxes;
+                    return GetTextBoxes(resultsArray, srcResize.Rows, srcResize.Cols, scale, boxScoreThresh, boxThresh, unClipRatio);
                 }
             }
             catch (Exception ex)
@@ -74,18 +72,13 @@ namespace OcrLiteLib
             return null;
         }
 
-        private static VectorOfVectorOfPoint FindContours(ReadOnlySpan<byte> array, int rows, int cols)
+        private static Point[][] FindContours(ReadOnlySpan<byte> array, int rows, int cols)
         {
             var v = array.ToArray().Select(b => (int)(b / byte.MaxValue)).ToArray();
-
-            var contours =
-                PContour.FindContours(v.AsSpan(), cols,
-                    rows);
-
-            var envelops = contours.Select(c => PContour.ApproxPolyDP(c.points.ToArray(), 1).ToArray()).ToArray();
-
-            return new VectorOfVectorOfPoint(envelops);
+            var contours = PContour.FindContours(v.AsSpan(), cols, rows);
+            return contours.Select(c => PContour.ApproxPolyDP(c.points.ToArray(), 1).ToArray()).ToArray();
         }
+
         private static bool TryFindIndex(Dictionary<int, int> link, int offset, out int index)
         {
             bool found = false;
@@ -99,85 +92,9 @@ namespace OcrLiteLib
             return found;
         }
 
-        /// <summary>
-        /// Algorithm to find the convex hull of the set of points with time complexity O(n log n).
-        /// </summary>
-        public static IEnumerable<Point> GrahamScan(IEnumerable<Point> points)
-        {
-            if (points?.Any() != true)
-            {
-                throw new ArgumentException("GrahamScan(): points cannot be null and must contain at least one point.", nameof(points));
-            }
-
-            if (points.Count() < 3) return points;
-
-            double polarAngle(Point point1, Point point2)
-            {
-                // This is used for grouping, we could use Math.Round()
-                return Math.Atan2(point2.Y - point1.Y, point2.X - point1.X) % Math.PI;
-            }
-
-            var stack = new Stack<Point>();
-            var sortedPoints = points.OrderBy(p => p.X).ThenBy(p => p.Y).ToList();
-            var P0 = sortedPoints[0];
-            var groups = sortedPoints.Skip(1).GroupBy(p => polarAngle(P0, p)).OrderBy(g => g.Key);
-
-            sortedPoints = new List<Point>();
-            foreach (var group in groups)
-            {
-                if (group.Count() == 1)
-                {
-                    sortedPoints.Add(group.First());
-                }
-                else
-                {
-                    // if more than one point has the same angle, 
-                    // remove all but the one that is farthest from P0
-                    sortedPoints.Add(group.OrderByDescending(p =>
-                    {
-                        double dx = p.X - P0.X;
-                        double dy = p.Y - P0.Y;
-                        return dx * dx + dy * dy;
-                    }).First());
-                }
-            }
-
-            if (sortedPoints.Count < 2)
-            {
-                return new[] { P0, sortedPoints[0] };
-            }
-
-            stack.Push(P0);
-            stack.Push(sortedPoints[0]);
-            stack.Push(sortedPoints[1]);
-
-            for (int i = 2; i < sortedPoints.Count; i++)
-            {
-                var point = sortedPoints[i];
-                while (stack.Count > 1 && !ccw(stack.ElementAt(1), stack.Peek(), point))
-                {
-                    stack.Pop();
-                }
-                stack.Push(point);
-            }
-
-            return stack;
-        }
-
-        /// <summary>
-        /// Return true if the points are in counter-clockwise order.
-        /// </summary>
-        /// <param name="point1">The first point.</param>
-        /// <param name="point2">The second point.</param>
-        /// <param name="point3">The third point.</param>
-        private static bool ccw(Point point1, Point point2, Point point3)
-        {
-            return (point2.X - point1.X) * (point3.Y - point1.Y) > (point2.Y - point1.Y) * (point3.X - point1.X);
-        }
-
         private static List<TextBox> GetTextBoxes(DisposableNamedOnnxValue[] outputTensor, int rows, int cols, ScaleParam s, float boxScoreThresh, float boxThresh, float unClipRatio)
         {
-            float maxSideThresh = 3.0f;//长边门限
+            const float maxSideThresh = 3.0f; // Long Edge Threshold
             List<TextBox> rsBoxes = new List<TextBox>();
 
             //-----Data preparation-----
@@ -193,19 +110,18 @@ namespace OcrLiteLib
 
             SKImage predMatImage = SKImage.FromPixelCopy(gray8, predData.Select(b => Convert.ToByte(b * 255)).ToArray());
 
-            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-
             var crop = new SKRectI(0, 0, cols, rows);
 
             Span<byte> rawPixels = new byte[predData.Length];
             for (int i = 0; i < predData.Length; i++)
             {
-                // Thresolding
+                // Thresholding
                 rawPixels[i] = predData[i] > boxThresh ? byte.MaxValue : byte.MinValue;
             }
 
             const int dilateRadius = 2;
 
+            Point[][] contours;
             using (var skImage = SKImage.FromPixelCopy(gray8, rawPixels))
             using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
             using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI _, out SKPointI _)) // Dilate
@@ -227,23 +143,26 @@ namespace OcrLiteLib
                 }
             }
 
-            for (int i = 0; i < contours.Size; i++)
+            for (int i = 0; i < contours.Length; i++)
             {
-                if (contours[i].Size <= 2)
+                if (contours[i].Length <= 2)
                 {
                     continue;
                 }
+
                 float maxSide = 0;
                 List<PointF> minBox = GetMiniBox(contours[i], out maxSide);
                 if (maxSide < maxSideThresh)
                 {
                     continue;
                 }
+
                 double score = GetScore(contours[i], predMatImage);
                 if (score < boxScoreThresh)
                 {
                     continue;
                 }
+
                 List<Point> clipBox = Unclip(minBox, unClipRatio);
                 if (clipBox == null)
                 {
@@ -255,6 +174,7 @@ namespace OcrLiteLib
                 {
                     continue;
                 }
+
                 List<Point> finalPoints = new List<Point>();
                 foreach (var item in clipMinBox)
                 {
@@ -272,23 +192,21 @@ namespace OcrLiteLib
                 textBox.Points = finalPoints;
                 rsBoxes.Add(textBox);
             }
+
             rsBoxes.Reverse();
             return rsBoxes;
         }
 
         private static List<PointF> GetMiniBox(List<Point> contours, out float minEdgeSize)
         {
-            VectorOfPoint vop = new VectorOfPoint();
-            vop.Push(contours.ToArray<Point>());
-            return GetMiniBox(vop, out minEdgeSize);
+            return GetMiniBox(contours.ToArray(), out minEdgeSize);
         }
 
-        private static List<PointF> GetMiniBox(VectorOfPoint contours, out float minEdgeSize)
+        private static List<PointF> GetMiniBox(Point[] contours, out float minEdgeSize)
         {
             List<PointF> box = new List<PointF>();
 
-            //RotatedRect rrect = CvInvoke.MinAreaRect(contours);
-            PointF[] points = GeometryExtensions.MinimumAreaRectangle(contours.ToArray());
+            PointF[] points = GeometryExtensions.MinimumAreaRectangle(contours);
 
             var size = GeometryExtensions.GetSize(points);
             minEdgeSize = Math.Min(size.width, size.height);
@@ -357,7 +275,7 @@ namespace OcrLiteLib
             return -1;
         }
 
-        private static double GetScore(VectorOfPoint contours, SKImage fMapMat)
+        private static double GetScore(Point[] contours, SKImage fMapMat)
         {
             short xmin = 9999;
             short xmax = 0;
@@ -366,7 +284,7 @@ namespace OcrLiteLib
 
             try
             {
-                foreach (Point point in contours.ToArray())
+                foreach (Point point in contours)
                 {
                     if (point.X < xmin)
                     {
@@ -470,7 +388,6 @@ namespace OcrLiteLib
             PointF[] points = GeometryExtensionsF.MinimumAreaRectangle(box.ToArray());
             var size = GeometryExtensions.GetSize(points);
 
-            //RotatedRect clipRect = CvInvoke.MinAreaRect(box.ToArray());
             if (size.height < 1.001 && size.width < 1.001)
             {
                 return null;
