@@ -190,7 +190,7 @@ namespace OcrLiteLib
         }
 
         private OcrResult DetectOnce(SKBitmap src, Rectangle originRect, ScaleParam scale, float boxScoreThresh, float boxThresh,
-         float unClipRatio, bool doAngle, bool mostAngle)
+            float unClipRatio, bool doAngle, bool mostAngle)
         {
             SKBitmap textBoxPaddingImg = src; //.Clone();
             int thickness = OcrUtils.GetThickness(src);
@@ -203,27 +203,10 @@ namespace OcrLiteLib
 
             Console.WriteLine($"TextBoxesSize({textBoxes.Count})");
             textBoxes.ForEach(x => Console.WriteLine(x));
-            //Console.WriteLine($"dbNetTime({dbNetTime}ms)");
-
-            Console.WriteLine("---------- step: drawTextBoxes ----------");
-            //OcrUtils.DrawTextBoxes(textBoxPaddingImg, textBoxes, thickness);
-            //CvInvoke.Imshow("ResultPadding", textBoxPaddingImg);
 
             //---------- getPartImages ----------
             List<SKBitmap> partImages = OcrUtils.GetPartImages(src, textBoxes);
-            /*
-            if (isPartImg)
-            {
-                for (int i = 0; i < partImages.Count; i++)
-                {
-                    CvInvoke.Imshow($"PartImg({i})", partImages[i]);
-                }
-            }
-            */
 
-            throw new Exception();
-
-            /*
             Console.WriteLine("---------- step: angleNet getAngles ----------");
             List<Angle> angles = angleNet.GetAngles(partImages, doAngle, mostAngle);
             //angles.ForEach(x => Console.WriteLine(x));
@@ -235,15 +218,10 @@ namespace OcrLiteLib
                 {
                     partImages[i] = OcrUtils.MatRotateClockWise180(partImages[i]);
                 }
-                if (isDebugImg)
-                {
-                    CvInvoke.Imshow($"DebugImg({i})", partImages[i]);
-                }
             }
 
             Console.WriteLine("---------- step: crnnNet getTextLines ----------");
             List<TextLine> textLines = crnnNet.GetTextLines(partImages);
-            //textLines.ForEach(x => Console.WriteLine(x));
 
             List<TextBlock> textBlocks = new List<TextBlock>();
             for (int i = 0; i < textLines.Count; ++i)
@@ -280,7 +258,6 @@ namespace OcrLiteLib
             ocrResult.StrRes = strRes.ToString();
 
             return ocrResult;
-            */
         }
     }
 }

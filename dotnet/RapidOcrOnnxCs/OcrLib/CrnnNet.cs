@@ -7,6 +7,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using SkiaSharp;
 
 namespace OcrLiteLib
 {
@@ -75,6 +76,58 @@ namespace OcrLiteLib
                 textLines.Add(textLine);
             }
             return textLines;
+        }
+
+        public List<TextLine> GetTextLines(List<SKBitmap> partImgs)
+        {
+            List<TextLine> textLines = new List<TextLine>();
+            for (int i = 0; i < partImgs.Count; i++)
+            {
+                var startTicks = DateTime.Now.Ticks;
+                var textLine = GetTextLine(partImgs[i]);
+                var endTicks = DateTime.Now.Ticks;
+                var crnnTime = (endTicks - startTicks) / 10000F;
+                textLine.Time = crnnTime;
+                textLines.Add(textLine);
+            }
+            return textLines;
+        }
+
+        private TextLine GetTextLine(SKBitmap src)
+        {
+            TextLine textLine = new TextLine();
+
+            float scale = (float)crnnDstHeight / (float)src.Height;
+            int dstWidth = (int)((float)src.Width * scale);
+
+            SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, crnnDstHeight), SKFilterQuality.High);
+
+            //Mat srcResize = new Mat();
+            //CvInvoke.Resize(src, srcResize, new Size(dstWidth, crnnDstHeight));
+
+            Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, MeanValues, NormValues);
+            var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+            };
+            try
+            {
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
+                {
+                    var resultsArray = results.ToArray();
+                    var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
+                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+
+                    return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message + ex.StackTrace);
+                //throw ex;
+            }
+
+            return textLine;
         }
 
         private TextLine GetTextLine(Mat src)

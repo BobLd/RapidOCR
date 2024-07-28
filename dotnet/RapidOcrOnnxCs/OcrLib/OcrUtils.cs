@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using SkiaSharp;
+using System.IO;
 
 namespace OcrLiteLib
 {
@@ -346,6 +347,37 @@ namespace OcrLiteLib
             CvInvoke.Flip(src, src, FlipType.Vertical);
             CvInvoke.Flip(src, src, FlipType.Horizontal);
             return src;
+        }
+
+        public static SKBitmap MatRotateClockWise180(SKBitmap src)
+        {
+            //CvInvoke.Flip(src, src, FlipType.Vertical);
+            //CvInvoke.Flip(src, src, FlipType.Horizontal);
+
+            var info = src.Info;
+
+            var rotated = new SKBitmap(info); //src.Height, src.Width);
+
+            using (var canvas = new SKCanvas(rotated))
+            {
+                canvas.Translate(rotated.Width, rotated.Height);
+                canvas.RotateDegrees(180);
+                canvas.DrawBitmap(src, 0, 0);
+            }
+
+            /*
+            using (var fs = new FileStream("MatRotateClockWise180.bmp", FileMode.Create))
+            {
+                rotated.Encode(fs, SKEncodedImageFormat.Png, 100);
+            }
+
+            using (var fs = new FileStream("src.bmp", FileMode.Create))
+            {
+                src.Encode(fs, SKEncodedImageFormat.Png, 100);
+            }
+            */
+
+            return rotated;
         }
 
         public static Mat MatRotateClockWise90(Mat src)
