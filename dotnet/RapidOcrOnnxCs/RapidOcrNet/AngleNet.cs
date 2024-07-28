@@ -4,7 +4,7 @@ using SkiaSharp;
 
 namespace OcrLiteLib
 {
-    public sealed class AngleNet
+    internal sealed class AngleNet
     {
         private readonly float[] MeanValues = [127.5F, 127.5F, 127.5F];
         private readonly float[] NormValues = [1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F];

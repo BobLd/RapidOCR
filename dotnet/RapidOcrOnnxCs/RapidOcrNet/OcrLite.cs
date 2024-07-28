@@ -5,13 +5,13 @@ namespace OcrLiteLib
 {
     public sealed class OcrLite
     {
-        private readonly DbNet2 _dbNet;
+        private readonly DbNet _dbNet;
         private readonly AngleNet _angleNet;
         private readonly CrnnNet _crnnNet;
 
         public OcrLite()
         {
-            _dbNet = new DbNet2();
+            _dbNet = new DbNet();
             _angleNet = new AngleNet();
             _crnnNet = new CrnnNet();
         }

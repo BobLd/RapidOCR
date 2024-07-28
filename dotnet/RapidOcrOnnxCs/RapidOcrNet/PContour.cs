@@ -27,7 +27,7 @@ using SkiaSharp;
 
 namespace PContourNet
 {
-    public static class PContour
+    internal static class PContour
     {
         private const int N_PIXEL_NEIGHBOR = 8;
 

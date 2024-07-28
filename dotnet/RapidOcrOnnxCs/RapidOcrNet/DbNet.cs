@@ -8,7 +8,7 @@ using SkiaSharp;
 
 namespace OcrLiteLib
 {
-    internal sealed class DbNet2
+    internal sealed class DbNet
     {
         private readonly float[] MeanValues = [0.485F * 255F, 0.456F * 255F, 0.406F * 255F];
         private readonly float[] NormValues = [1.0F / 0.229F / 255.0F, 1.0F / 0.224F / 255.0F, 1.0F / 0.225F / 255.0F];
@@ -17,9 +17,9 @@ namespace OcrLiteLib
 
         private List<string> inputNames;
 
-        public DbNet2() { }
+        public DbNet() { }
 
-        ~DbNet2()
+        ~DbNet()
         {
             dbNet.Dispose();
         }
