@@ -179,6 +179,8 @@
     <Compile Include="DbNet.cs" />
     <Compile Include="DbNet2.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="GeometryExtensions.cs" />
+    <Compile Include="GeometryExtensionsF.cs" />
     <Compile Include="OcrLite.cs" />
     <Compile Include="OcrResult.cs" />
     <Compile Include="OcrUtils.cs" />

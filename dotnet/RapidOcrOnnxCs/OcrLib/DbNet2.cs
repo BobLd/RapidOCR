@@ -5,11 +5,10 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ClipperLib;
 using Emgu.CV;
-using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
+using OcrLib;
 using PContourNet;
 using SkiaSharp;
 
@@ -70,7 +69,7 @@ namespace OcrLiteLib
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message + ex.StackTrace);
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
             }
             return null;
         }
@@ -207,9 +206,9 @@ namespace OcrLiteLib
 
             const int dilateRadius = 2;
 
-            using (var skImage = SKImage.FromPixelCopy(gray8, rawPixels)) // use pointer?
+            using (var skImage = SKImage.FromPixelCopy(gray8, rawPixels))
             using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
-            using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI subset, out SKPointI offset)) // Dilate
+            using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI _, out SKPointI _)) // Dilate
             using (var croppedDilatedSubset = dilated.Subset(crop)) // Trim image due to dilate
             {
                 IntPtr buffer = Marshal.AllocHGlobal(gray8.BytesSize);
@@ -287,9 +286,12 @@ namespace OcrLiteLib
         private static List<PointF> GetMiniBox(VectorOfPoint contours, out float minEdgeSize)
         {
             List<PointF> box = new List<PointF>();
-            RotatedRect rrect = CvInvoke.MinAreaRect(contours);
-            PointF[] points = CvInvoke.BoxPoints(rrect);
-            minEdgeSize = Math.Min(rrect.Size.Width, rrect.Size.Height);
+
+            //RotatedRect rrect = CvInvoke.MinAreaRect(contours);
+            PointF[] points = GeometryExtensions.MinimumAreaRectangle(contours.ToArray());
+
+            var size = GeometryExtensions.GetSize(points);
+            minEdgeSize = Math.Min(size.width, size.height);
 
             List<PointF> thePoints = new List<PointF>(points);
             thePoints.Sort(CompareByX);
@@ -465,8 +467,11 @@ namespace OcrLiteLib
 
         private static List<Point> Unclip(List<PointF> box, float unclip_ratio)
         {
-            RotatedRect clipRect = CvInvoke.MinAreaRect(box.ToArray());
-            if (clipRect.Size.Height < 1.001 && clipRect.Size.Width < 1.001)
+            PointF[] points = GeometryExtensionsF.MinimumAreaRectangle(box.ToArray());
+            var size = GeometryExtensions.GetSize(points);
+
+            //RotatedRect clipRect = CvInvoke.MinAreaRect(box.ToArray());
+            if (size.height < 1.001 && size.width < 1.001)
             {
                 return null;
             }
@@ -548,6 +553,5 @@ namespace OcrLiteLib
             box.RemoveAt(count - 1);
             return length;
         }
-
     }
 }
