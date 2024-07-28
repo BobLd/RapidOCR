@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Text;
 using SkiaSharp;
@@ -11,9 +10,9 @@ namespace OcrLiteLib
     {
         public bool isPartImg { get; set; }
         public bool isDebugImg { get; set; }
-        private DbNet2 dbNet;
-        private AngleNet angleNet;
-        private CrnnNet crnnNet;
+        private readonly DbNet2 dbNet;
+        private readonly AngleNet angleNet;
+        private readonly CrnnNet crnnNet;
 
         public OcrLite()
         {
@@ -55,7 +54,8 @@ namespace OcrLiteLib
                 }
 
                 resize += 2 * padding;
-                Rectangle paddingRect = new Rectangle(padding, padding, originSrc.Width, originSrc.Height);
+                //Rectangle paddingRect = new Rectangle(padding, padding, originSrc.Width, originSrc.Height);
+                SKRectI paddingRect = new SKRectI(padding, padding, originSrc.Width + padding, originSrc.Height + padding);
                 SKBitmap paddingSrc = OcrUtils.MakePadding(originSrc, padding);
 
                 /*
@@ -67,12 +67,11 @@ namespace OcrLiteLib
 
                 ScaleParam scale = ScaleParam.GetScaleParam(paddingSrc, resize);
 
-                return DetectOnce(paddingSrc, paddingRect, scale, boxScoreThresh, boxThresh, unClipRatio, doAngle,
-                    mostAngle);
+                return DetectOnce(paddingSrc, paddingRect, scale, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle);
             }
         }
 
-        private OcrResult DetectOnce(SKBitmap src, Rectangle originRect, ScaleParam scale, float boxScoreThresh,
+        private OcrResult DetectOnce(SKBitmap src, SKRectI originRect, ScaleParam scale, float boxScoreThresh,
             float boxThresh,
             float unClipRatio, bool doAngle, bool mostAngle)
         {
