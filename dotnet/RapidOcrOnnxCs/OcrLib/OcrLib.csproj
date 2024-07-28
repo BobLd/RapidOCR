@@ -176,7 +176,6 @@
   <ItemGroup>
     <Compile Include="AngleNet.cs" />
     <Compile Include="CrnnNet.cs" />
-    <Compile Include="DbNet.cs" />
     <Compile Include="DbNet2.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="GeometryExtensions.cs" />
