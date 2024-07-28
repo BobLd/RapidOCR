@@ -118,11 +118,11 @@ namespace RapidOcrNet
             return new Angle();
         }
 
-        private static Angle ScoreToAngle(ReadOnlySpan<float> srcData, int angleCols)
+        private static Angle ScoreToAngle(ReadOnlySpan<float> srcData, int angleColumns)
         {
             int angleIndex = 0;
             float maxValue = -1000.0F;
-            for (int i = 0; i < angleCols; i++)
+            for (int i = 0; i < angleColumns; i++)
             {
                 if (i == 0) maxValue = srcData[i];
                 else if (srcData[i] > maxValue)
