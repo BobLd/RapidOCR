@@ -177,13 +177,14 @@ namespace OcrLiteLib
 
         public static SKBitmap GetRotateCropImage(SKBitmap src, List<Point> box)
         {
-            SKBitmap image = new SKBitmap(src.Info);
-            src.CopyTo(image);
+            //SKBitmap src = new SKBitmap(src.Info);
+            //src.CopyTo(src);
             List<Point> points = new List<Point>();
             points.AddRange(box);
 
             int[] collectX = { box[0].X, box[1].X, box[2].X, box[3].X };
             int[] collectY = { box[0].Y, box[1].Y, box[2].Y, box[3].Y };
+
             int left = collectX.Min();
             int right = collectX.Max();
             int top = collectY.Min();
@@ -196,7 +197,6 @@ namespace OcrLiteLib
             info.Height = rect.Height;
 
             SKBitmap imgCrop = new SKBitmap(info);
-
             if (!src.ExtractSubset(imgCrop, rect))
             {
                 throw new Exception("Could not extract subset.");
