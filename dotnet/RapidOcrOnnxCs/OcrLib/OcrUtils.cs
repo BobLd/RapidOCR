@@ -131,19 +131,13 @@ namespace OcrLiteLib
             }
         }
 
-        public static List<SKBitmap> GetPartImages(SKBitmap src, List<TextBox> textBoxes)
+        public static IEnumerable<SKBitmap> GetPartImages(SKBitmap src, List<TextBox> textBoxes)
         {
-            List<SKBitmap> partImages = new List<SKBitmap>();
             for (int i = 0; i < textBoxes.Count; ++i)
             {
-                SKBitmap partImg = GetRotateCropImage(src, textBoxes[i].Points);
-                //Mat partImg = new Mat();
-                //GetRoiFromBox(src, partImg, textBoxes[i].Points);
-                partImages.Add(partImg);
+                yield return GetRotateCropImage(src, textBoxes[i].Points);
             }
-            return partImages;
         }
-
 
         public static List<Mat> GetPartImages(Mat src, List<TextBox> textBoxes)
         {
@@ -203,7 +197,10 @@ namespace OcrLiteLib
 
             SKBitmap imgCrop = new SKBitmap(info);
 
-            bool success = src.ExtractSubset(imgCrop, rect);
+            if (!src.ExtractSubset(imgCrop, rect))
+            {
+                throw new Exception("Could not extract subset.");
+            }
 
             for (int i = 0; i < points.Count; i++)
             {
@@ -213,24 +210,10 @@ namespace OcrLiteLib
                 points[i] = pt;
             }
 
-            int imgCropWidth = (int)(Math.Sqrt(Math.Pow(points[0].X - points[1].X, 2) +
-                                        Math.Pow(points[0].Y - points[1].Y, 2)));
-            int imgCropHeight = (int)(Math.Sqrt(Math.Pow(points[0].X - points[3].X, 2) +
-                                         Math.Pow(points[0].Y - points[3].Y, 2)));
-
-            var ptsDst0 = new PointF(0, 0);
-            var ptsDst1 = new PointF(imgCropWidth, 0);
-            var ptsDst2 = new PointF(imgCropWidth, imgCropHeight);
-            var ptsDst3 = new PointF(0, imgCropHeight);
-
-            PointF[] ptsDst = { ptsDst0, ptsDst1, ptsDst2, ptsDst3 };
-
-            var ptsSrc0 = new PointF(points[0].X, points[0].Y);
-            var ptsSrc1 = new PointF(points[1].X, points[1].Y);
-            var ptsSrc2 = new PointF(points[2].X, points[2].Y);
-            var ptsSrc3 = new PointF(points[3].X, points[3].Y);
-
-            PointF[] ptsSrc = { ptsSrc0, ptsSrc1, ptsSrc2, ptsSrc3 };
+            int imgCropWidth = (int)Math.Sqrt(Math.Pow(points[0].X - points[1].X, 2) +
+                                        Math.Pow(points[0].Y - points[1].Y, 2));
+            int imgCropHeight = (int)Math.Sqrt(Math.Pow(points[0].X - points[3].X, 2) +
+                                         Math.Pow(points[0].Y - points[3].Y, 2));
 
             var ptsSrc0Sk = new SKPoint(points[0].X, points[0].Y);
             var ptsSrc1Sk = new SKPoint(points[1].X, points[1].Y);
@@ -238,6 +221,16 @@ namespace OcrLiteLib
             var ptsSrc3Sk = new SKPoint(points[3].X, points[3].Y);
 
             var m = GetPerspectiveTransform(ptsSrc0Sk, ptsSrc1Sk, ptsSrc2Sk, ptsSrc3Sk, imgCropWidth, imgCropHeight);
+
+            if (m.IsIdentity)
+            {
+                if (imgCrop.Height >= imgCrop.Width * 1.5)
+                {
+                    return MatRotateClockWise90(imgCrop);
+                }
+
+                return imgCrop;
+            }
 
             var info2 = imgCrop.Info;
             info2.Width = imgCropWidth;
@@ -251,30 +244,11 @@ namespace OcrLiteLib
                 canvas.Restore();
             }
 
-            /*
-            Mat M = CvInvoke.GetPerspectiveTransform(ptsSrc, ptsDst);
-
-            Mat partImg = new Mat();
-            CvInvoke.WarpPerspective(imgCrop, partImg, M,
-                                new Size(imgCropWidth, imgCropHeight), Inter.Nearest, Warp.Default,
-                               BorderType.Replicate);
-            */
-
             if (partImg.Height >= partImg.Width * 1.5)
             {
-                throw new NotImplementedException("TODO");
-                /*
-                Mat srcCopy = new Mat();
-                CvInvoke.Transpose(partImg, srcCopy);
-                CvInvoke.Flip(srcCopy, srcCopy, 0);
-                return srcCopy;
-                */
+                return MatRotateClockWise90(partImg);
             }
-            else
-            {
-                return partImg;
-            }
-            
+            return partImg;
         }
 
         public static Mat GetRotateCropImage(Mat src, List<Point> box)
@@ -314,7 +288,6 @@ namespace OcrLiteLib
 
             PointF[] ptsDst = { ptsDst0, ptsDst1, ptsDst2, ptsDst3 };
 
-
             var ptsSrc0 = new PointF(points[0].X, points[0].Y);
             var ptsSrc1 = new PointF(points[1].X, points[1].Y);
             var ptsSrc2 = new PointF(points[2].X, points[2].Y);
@@ -351,12 +324,7 @@ namespace OcrLiteLib
 
         public static SKBitmap MatRotateClockWise180(SKBitmap src)
         {
-            //CvInvoke.Flip(src, src, FlipType.Vertical);
-            //CvInvoke.Flip(src, src, FlipType.Horizontal);
-
-            var info = src.Info;
-
-            var rotated = new SKBitmap(info); //src.Height, src.Width);
+            var rotated = new SKBitmap(src.Info);
 
             using (var canvas = new SKCanvas(rotated))
             {
@@ -364,18 +332,6 @@ namespace OcrLiteLib
                 canvas.RotateDegrees(180);
                 canvas.DrawBitmap(src, 0, 0);
             }
-
-            /*
-            using (var fs = new FileStream("MatRotateClockWise180.bmp", FileMode.Create))
-            {
-                rotated.Encode(fs, SKEncodedImageFormat.Png, 100);
-            }
-
-            using (var fs = new FileStream("src.bmp", FileMode.Create))
-            {
-                src.Encode(fs, SKEncodedImageFormat.Png, 100);
-            }
-            */
 
             return rotated;
         }
@@ -386,6 +342,19 @@ namespace OcrLiteLib
             return src;
         }
 
+        public static SKBitmap MatRotateClockWise90(SKBitmap src)
+        {
+            var rotated = new SKBitmap(src.Info);
+
+            using (var canvas = new SKCanvas(rotated))
+            {
+                canvas.Translate(rotated.Width, 0);
+                canvas.RotateDegrees(90);
+                canvas.DrawBitmap(src, 0, 0);
+            }
+
+            return rotated;
+        }
     }
 }
 

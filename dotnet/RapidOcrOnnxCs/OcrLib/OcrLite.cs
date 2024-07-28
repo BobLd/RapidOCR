@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text;
 using SkiaSharp;
 
@@ -205,14 +206,14 @@ namespace OcrLiteLib
             textBoxes.ForEach(x => Console.WriteLine(x));
 
             //---------- getPartImages ----------
-            List<SKBitmap> partImages = OcrUtils.GetPartImages(src, textBoxes);
+            SKBitmap[] partImages = OcrUtils.GetPartImages(src, textBoxes).ToArray();
 
             Console.WriteLine("---------- step: angleNet getAngles ----------");
             List<Angle> angles = angleNet.GetAngles(partImages, doAngle, mostAngle);
             //angles.ForEach(x => Console.WriteLine(x));
 
             //Rotate partImgs
-            for (int i = 0; i < partImages.Count; ++i)
+            for (int i = 0; i < partImages.Length; ++i)
             {
                 if (angles[i].Index == 1)
                 {

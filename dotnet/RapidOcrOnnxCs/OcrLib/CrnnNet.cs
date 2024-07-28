@@ -78,7 +78,7 @@ namespace OcrLiteLib
             return textLines;
         }
 
-        public List<TextLine> GetTextLines(List<SKBitmap> partImgs)
+        public List<TextLine> GetTextLines(IReadOnlyList<SKBitmap> partImgs)
         {
             List<TextLine> textLines = new List<TextLine>();
             for (int i = 0; i < partImgs.Count; i++)

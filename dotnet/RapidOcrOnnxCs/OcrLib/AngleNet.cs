@@ -46,7 +46,7 @@ namespace OcrLiteLib
             }
         }
 
-        public List<Angle> GetAngles(List<SKBitmap> partImgs, bool doAngle, bool mostAngle)
+        public List<Angle> GetAngles(IReadOnlyList<SKBitmap> partImgs, bool doAngle, bool mostAngle)
         {
             List<Angle> angles = new List<Angle>();
             if (doAngle)
@@ -81,13 +81,16 @@ namespace OcrLiteLib
                 double halfPercent = angles.Count / 2.0f;
                 int mostAngleIndex;
                 if (sum < halfPercent)
-                {//all angle set to 0
+                {
+                    //all angle set to 0
                     mostAngleIndex = 0;
                 }
                 else
-                {//all angle set to 1
+                {
+                    //all angle set to 1
                     mostAngleIndex = 1;
                 }
+
                 Console.WriteLine($"Set All Angle to mostAngleIndex({mostAngleIndex})");
                 for (int i = 0; i < angles.Count; ++i)
                 {
