@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.ML.OnnxRuntime;
+﻿using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
 
@@ -9,11 +6,13 @@ namespace OcrLiteLib
 {
     public sealed class AngleNet
     {
-        private readonly float[] MeanValues = { 127.5F, 127.5F, 127.5F };
-        private readonly float[] NormValues = { 1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F };
+        private readonly float[] MeanValues = [127.5F, 127.5F, 127.5F];
+        private readonly float[] NormValues = [1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F];
+
         private const int angleDstWidth = 192;
         private const int angleDstHeight = 48;
         private const int angleCols = 2;
+        
         private InferenceSession angleNet;
         private List<string> inputNames;
 
@@ -30,17 +29,19 @@ namespace OcrLiteLib
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
+                var op = new SessionOptions
+                {
+                    GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
+                    InterOpNumThreads = numThread,
+                    IntraOpNumThreads = numThread
+                };
                 angleNet = new InferenceSession(path, op);
                 inputNames = angleNet.InputMetadata.Keys.ToList();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                throw ex;
+                throw;
             }
         }
 
