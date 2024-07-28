@@ -1,5 +1,6 @@
 ﻿using Emgu.CV;
 using System;
+using SkiaSharp;
 
 namespace OcrLiteLib
 {
@@ -32,6 +33,42 @@ namespace OcrLiteLib
         public override string ToString()
         {
             return $"sw:{this.srcWidth},sh:{this.srcHeight},dw:{this.dstWidth},dh:{this.dstHeight},{this.scaleWidth},{this.scaleHeight}";
+        }
+
+        public static ScaleParam GetScaleParam(SKBitmap src, int dstSize)
+        {
+            int srcWidth, srcHeight, dstWidth, dstHeight;
+            srcWidth = src.Width;
+            dstWidth = src.Width;
+            srcHeight = src.Height;
+            dstHeight = src.Height;
+
+            float scale = 1.0F;
+            if (dstWidth > dstHeight)
+            {
+                scale = (float)dstSize / (float)dstWidth;
+                dstWidth = dstSize;
+                dstHeight = (int)((float)dstHeight * scale);
+            }
+            else
+            {
+                scale = (float)dstSize / (float)dstHeight;
+                dstHeight = dstSize;
+                dstWidth = (int)((float)dstWidth * scale);
+            }
+            if (dstWidth % 32 != 0)
+            {
+                dstWidth = (dstWidth / 32 - 1) * 32;
+                dstWidth = Math.Max(dstWidth, 32);
+            }
+            if (dstHeight % 32 != 0)
+            {
+                dstHeight = (dstHeight / 32 - 1) * 32;
+                dstHeight = Math.Max(dstHeight, 32);
+            }
+            float scaleWidth = (float)dstWidth / (float)srcWidth;
+            float scaleHeight = (float)dstHeight / (float)srcHeight;
+            return new ScaleParam(srcWidth, srcHeight, dstWidth, dstHeight, scaleWidth, scaleHeight);
         }
 
         public static ScaleParam GetScaleParam(Mat src, int dstSize)
