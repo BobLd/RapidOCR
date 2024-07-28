@@ -61,9 +61,7 @@ namespace RapidOcrNet
             {
                 using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = dbNet.Run(inputs))
                 {
-                    var resultsArray = results.ToArray();
-                    System.Diagnostics.Debug.WriteLine(resultsArray);
-                    return GetTextBoxes(resultsArray, scale.DstHeight, scale.DstWidth, scale, boxScoreThresh,
+                    return GetTextBoxes(results[0], scale.DstHeight, scale.DstWidth, scale, boxScoreThresh,
                         boxThresh, unClipRatio);
                 }
             }
@@ -95,13 +93,13 @@ namespace RapidOcrNet
             return found;
         }
 
-        private static List<TextBox> GetTextBoxes(DisposableNamedOnnxValue[] outputTensor, int rows, int cols, ScaleParam s, float boxScoreThresh, float boxThresh, float unClipRatio)
+        private static List<TextBox> GetTextBoxes(DisposableNamedOnnxValue outputTensor, int rows, int cols, ScaleParam s, float boxScoreThresh, float boxThresh, float unClipRatio)
         {
             const float maxSideThresh = 3.0f; // Long Edge Threshold
             List<TextBox> rsBoxes = new List<TextBox>();
 
             //-----Data preparation-----
-            float[] predData = outputTensor[0].AsEnumerable<float>().ToArray();
+            float[] predData = outputTensor.AsEnumerable<float>().ToArray();
 
             var gray8 = new SKImageInfo()
             {

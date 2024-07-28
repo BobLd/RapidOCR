@@ -12,9 +12,9 @@ namespace RapidOcrNet
         private const int crnnDstHeight = 48;
         private const int crnnCols = 6625;
 
-        private InferenceSession crnnNet;
-        private List<string> keys;
-        private List<string> inputNames;
+        private InferenceSession _crnnNet;
+        private List<string> _keys;
+        private List<string> _inputNames;
 
         public CrnnNet()
         {
@@ -22,7 +22,7 @@ namespace RapidOcrNet
 
         ~CrnnNet()
         {
-            crnnNet.Dispose();
+            _crnnNet.Dispose();
         }
 
         public void InitModel(string path, string keysPath, int numThread)
@@ -36,9 +36,9 @@ namespace RapidOcrNet
                     IntraOpNumThreads = numThread
                 };
 
-                crnnNet = new InferenceSession(path, op);
-                inputNames = crnnNet.InputMetadata.Keys.ToList();
-                keys = InitKeys(keysPath);
+                _crnnNet = new InferenceSession(path, op);
+                _inputNames = _crnnNet.InputMetadata.Keys.ToList();
+                _keys = InitKeys(keysPath);
             }
             catch (Exception ex)
             {
@@ -91,16 +91,16 @@ namespace RapidOcrNet
 
             var inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+                NamedOnnxValue.CreateFromTensor(_inputNames[0], inputTensors)
             };
 
             try
             {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _crnnNet.Run(inputs))
                 {
-                    var resultsArray = results.ToArray();
-                    var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
-                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+                    var result = results[0];
+                    var dimensions = result.AsTensor<float>().Dimensions;
+                    ReadOnlySpan<float> outputData = result.AsEnumerable<float>().ToArray();
 
                     return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
                 }
@@ -114,7 +114,7 @@ namespace RapidOcrNet
             return new TextLine();
         }
 
-        private TextLine ScoreToTextLine(float[] srcData, int h, int w)
+        private TextLine ScoreToTextLine(ReadOnlySpan<float> srcData, int h, int w)
         {
             StringBuilder sb = new StringBuilder();
             TextLine textLine = new TextLine();
@@ -136,10 +136,10 @@ namespace RapidOcrNet
                     }
                 }
 
-                if (maxIndex > 0 && maxIndex < keys.Count && !(i > 0 && maxIndex == lastIndex))
+                if (maxIndex > 0 && maxIndex < _keys.Count && !(i > 0 && maxIndex == lastIndex))
                 {
                     scores.Add(maxValue);
-                    sb.Append(keys[maxIndex]);
+                    sb.Append(_keys[maxIndex]);
                 }
 
                 lastIndex = maxIndex;

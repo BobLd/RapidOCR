@@ -105,9 +105,7 @@ namespace RapidOcrNet
             {
                 using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
                 {
-                    var resultsArray = results.ToArray();
-                    System.Diagnostics.Debug.WriteLine(resultsArray);
-                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+                    ReadOnlySpan<float> outputData = results[0].AsEnumerable<float>().ToArray();
                     return ScoreToAngle(outputData, angleCols);
                 }
             }
@@ -120,7 +118,7 @@ namespace RapidOcrNet
             return new Angle();
         }
 
-        private static Angle ScoreToAngle(float[] srcData, int angleCols)
+        private static Angle ScoreToAngle(ReadOnlySpan<float> srcData, int angleCols)
         {
             int angleIndex = 0;
             float maxValue = -1000.0F;
