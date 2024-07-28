@@ -1,7 +1,7 @@
 ﻿using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
 
-namespace OcrLiteLib
+namespace RapidOcrNet
 {
     internal static class OcrUtils
     {

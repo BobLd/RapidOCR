@@ -25,7 +25,7 @@
 
 using SkiaSharp;
 
-namespace PContourNet
+namespace RapidOcrNet
 {
     internal static class PContour
     {
@@ -279,7 +279,7 @@ namespace PContourNet
                     Contour B = new Contour();
                     B.points = new List<SKPointI>();
                     B.points.Add(new SKPointI(j, i));
-                    B.isHole = (j2 == j + 1);
+                    B.isHole = j2 == j + 1;
                     B.id = nbd;
                     contours.Add(B);
 

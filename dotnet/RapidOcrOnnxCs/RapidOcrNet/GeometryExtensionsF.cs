@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using SkiaSharp;
 
-namespace OcrLib
+namespace RapidOcrNet
 {
     public static class GeometryExtensionsF
     {

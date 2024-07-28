@@ -1,6 +1,6 @@
 ﻿using SkiaSharp;
 
-namespace OcrLiteLib
+namespace RapidOcrNet
 {
     public sealed class ScaleParam
     {
@@ -28,7 +28,7 @@ namespace OcrLiteLib
 
         public override string ToString()
         {
-            return $"sw:{this.SrcWidth},sh:{this.SrcHeight},dw:{this.DstWidth},dh:{this.DstHeight},{this.ScaleWidth},{this.ScaleHeight}";
+            return $"sw:{SrcWidth},sh:{SrcHeight},dw:{DstWidth},dh:{DstHeight},{ScaleWidth},{ScaleHeight}";
         }
 
         public static ScaleParam GetScaleParam(SKBitmap src, int dstSize)

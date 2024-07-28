@@ -2,11 +2,9 @@
 using Clipper2Lib;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
-using OcrLib;
-using PContourNet;
 using SkiaSharp;
 
-namespace OcrLiteLib
+namespace RapidOcrNet
 {
     internal sealed class DbNet
     {
@@ -79,7 +77,7 @@ namespace OcrLiteLib
 
         private static SKPointI[][] FindContours(ReadOnlySpan<byte> array, int rows, int cols)
         {
-            var v = array.ToArray().Select(b => (int)(b / byte.MaxValue)).ToArray();
+            var v = array.ToArray().Select(b => b / byte.MaxValue).ToArray();
             var contours = PContour.FindContours(v.AsSpan(), cols, rows);
             return contours.Select(c => PContour.ApproxPolyDP(c.points.ToArray(), 1).ToArray()).ToArray();
         }
@@ -130,7 +128,7 @@ namespace OcrLiteLib
             using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI _, out SKPointI _)) // Dilate
             using (var croppedDilatedSubset = dilated.Subset(crop)) // Trim image due to dilate
             {
-                IntPtr buffer = Marshal.AllocHGlobal(gray8.BytesSize);
+                nint buffer = Marshal.AllocHGlobal(gray8.BytesSize);
                 try
                 {
                     croppedDilatedSubset.ReadPixels(gray8, buffer);
@@ -332,7 +330,7 @@ namespace OcrLiteLib
 
                 using (SKImage roiBitmapSk = fMapMat.Subset(new SKRectI(xmin, ymin, xmax, ymax)))
                 {
-                    IntPtr buffer = Marshal.AllocHGlobal(gray8.BytesSize);
+                    nint buffer = Marshal.AllocHGlobal(gray8.BytesSize);
                     try
                     {
                         roiBitmapSk.ReadPixels(gray8, buffer);

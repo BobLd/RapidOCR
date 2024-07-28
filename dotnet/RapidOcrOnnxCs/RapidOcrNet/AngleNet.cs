@@ -2,7 +2,7 @@
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
 
-namespace OcrLiteLib
+namespace RapidOcrNet
 {
     internal sealed class AngleNet
     {
@@ -12,7 +12,7 @@ namespace OcrLiteLib
         private const int angleDstWidth = 192;
         private const int angleDstHeight = 48;
         private const int angleCols = 2;
-        
+
         private InferenceSession angleNet;
         private List<string> inputNames;
 

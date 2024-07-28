@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using SkiaSharp;
 
-namespace OcrLiteLib
+namespace RapidOcrNet
 {
     public sealed class TextBox
     {

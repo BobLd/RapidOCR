@@ -3,7 +3,7 @@ using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
 
-namespace OcrLiteLib
+namespace RapidOcrNet
 {
     internal sealed class CrnnNet
     {
@@ -51,7 +51,7 @@ namespace OcrLiteLib
         {
             StreamReader sr = new StreamReader(path, Encoding.UTF8);
             List<string> keys = new List<string> { "#" };
-            String line;
+            string line;
             while ((line = sr.ReadLine()) != null)
             {
                 //System.Diagnostics.Debug.WriteLine(line.ToString());
@@ -136,7 +136,7 @@ namespace OcrLiteLib
                     }
                 }
 
-                if (maxIndex > 0 && maxIndex < keys.Count && (!(i > 0 && maxIndex == lastIndex)))
+                if (maxIndex > 0 && maxIndex < keys.Count && !(i > 0 && maxIndex == lastIndex))
                 {
                     scores.Add(maxValue);
                     sb.Append(keys[maxIndex]);

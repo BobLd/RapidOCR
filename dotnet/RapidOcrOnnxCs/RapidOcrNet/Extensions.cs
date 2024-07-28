@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace PContourNet
+namespace RapidOcrNet
 {
     internal static class Extensions
     {
