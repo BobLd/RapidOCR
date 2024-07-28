@@ -214,7 +214,7 @@ namespace RapidOcrNet
             SKPoint[] points = GeometryExtensions.MinimumAreaRectangle(contours);
 
             var size = GeometryExtensions.GetSize(points);
-            minEdgeSize = Math.Min(size.width, size.height);
+            minEdgeSize = MathF.Min(size.width, size.height);
 
             List<SKPoint> thePoints = new List<SKPoint>(points);
             thePoints.Sort(CompareByX);
@@ -401,7 +401,7 @@ namespace RapidOcrNet
 
             var theClipperPts = new Path64(box.Select(pt => new Point64((int)pt.X, (int)pt.Y)));
 
-            float area = Math.Abs(SignedPolygonArea(boxArr));
+            float area = MathF.Abs(SignedPolygonArea(boxArr));
             double length = LengthOfPoints(box);
             double distance = area * unclipRatio / length;
 

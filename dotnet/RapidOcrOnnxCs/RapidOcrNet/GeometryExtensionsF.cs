@@ -27,10 +27,10 @@ namespace RapidOcrNet
             }
         }
 
-        private static double polarAngle(in SKPoint point1, in SKPoint point2)
+        private static float polarAngle(in SKPoint point1, in SKPoint point2)
         {
             // This is used for grouping, we could use Math.Round()
-            return Math.Atan2(point2.Y - point1.Y, point2.X - point1.X) % Math.PI;
+            return MathF.Atan2(point2.Y - point1.Y, point2.X - point1.X) % MathF.PI;
         }
 
         /// <summary>
@@ -71,8 +71,8 @@ namespace RapidOcrNet
                         // remove all but the one that is farthest from P0
                         sortedPoints[i] = group.OrderByDescending(p =>
                         {
-                            double dx = p.X - P0.X;
-                            double dy = p.Y - P0.Y;
+                            float dx = p.X - P0.X;
+                            float dy = p.Y - P0.Y;
                             return dx * dx + dy * dy;
                         }).First();
                     }
@@ -141,12 +141,12 @@ namespace RapidOcrNet
 
             if (polygon.Length == 1)
             {
-                return new SKPoint[] { polygon[0], polygon[0] };
+                return [polygon[0], polygon[0]];
             }
 
             if (polygon.Length == 2)
             {
-                return new SKPoint[] { polygon[0], polygon[1] };
+                return [polygon[0], polygon[1]];
             }
 
             Span<float> mrb = stackalloc float[8];
@@ -254,13 +254,13 @@ namespace RapidOcrNet
                 if (k == polygon.Length) break;
             }
 
-            return new SKPoint[]
-            {
+            return
+            [
                 new SKPoint(mrb[4], mrb[5]),
                 new SKPoint(mrb[6], mrb[7]),
                 new SKPoint(mrb[2], mrb[3]),
                 new SKPoint(mrb[0], mrb[1])
-            };
+            ];
         }
     }
 }

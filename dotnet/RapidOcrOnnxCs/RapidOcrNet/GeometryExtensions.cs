@@ -272,17 +272,19 @@ namespace RapidOcrNet
             SKPoint BottomLeft = points[2];
             SKPoint BottomRight = points[3];
 
-            double t = 0;
+            float t = 0;
             if (!BottomRight.Equals(BottomLeft))
             {
-                t = Math.Atan2(BottomRight.Y - BottomLeft.Y, BottomRight.X - BottomLeft.X);
+                t = MathF.Atan2(BottomRight.Y - BottomLeft.Y, BottomRight.X - BottomLeft.X);
+            }
+            else
+            {
+                // handle the case where both bottom points are identical
+                t = MathF.Atan2(TopLeft.Y - BottomLeft.Y, TopLeft.X - BottomLeft.X) - MathF.PI / 2;
             }
 
-            // handle the case where both bottom points are identical
-            t = Math.Atan2(TopLeft.Y - BottomLeft.Y, TopLeft.X - BottomLeft.X) - Math.PI / 2;
-
-            var cos = (float)Math.Cos(t);
-            var sin = (float)Math.Sin(t);
+            var cos = MathF.Cos(t);
+            var sin = MathF.Sin(t);
 
             //Matrix inverseRotation = new Matrix(cos, -sin, sin, cos, 0, 0);
             //inverseRotation.TransformPoints(new SKPoint[] { BottomLeft, BottomRight, TopLeft });
@@ -308,7 +310,7 @@ namespace RapidOcrNet
             */
 
             var bl = BottomLeft;
-            return (Math.Abs(BottomRight.X - bl.X), Math.Abs(TopLeft.Y - bl.Y));
+            return (MathF.Abs(BottomRight.X - bl.X), MathF.Abs(TopLeft.Y - bl.Y));
         }
     }
 }
