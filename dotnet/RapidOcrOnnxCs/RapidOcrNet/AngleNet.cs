@@ -47,13 +47,13 @@ namespace RapidOcrNet
 
         public List<Angle> GetAngles(IReadOnlyList<SKBitmap> partImgs, bool doAngle, bool mostAngle)
         {
-            List<Angle> angles = new List<Angle>();
+            var angles = new List<Angle>();
             if (doAngle)
             {
-                for (int i = 0; i < partImgs.Count; i++)
+                foreach (var bmp in partImgs)
                 {
                     var startTicks = DateTime.Now.Ticks;
-                    var angle = GetAngle(partImgs[i]);
+                    var angle = GetAngle(bmp);
                     var endTicks = DateTime.Now.Ticks;
                     angle.Time = (endTicks - startTicks) / 10000F;
                     angles.Add(angle);
@@ -63,29 +63,25 @@ namespace RapidOcrNet
             {
                 for (int i = 0; i < partImgs.Count; i++)
                 {
-                    var angle = new Angle
+                    angles.Add(new Angle
                     {
                         Index = -1,
                         Score = 0F
-                    };
-                    angles.Add(angle);
+                    });
                 }
             }
 
             // Most Possible AngleIndex
             if (doAngle && mostAngle)
             {
-                List<int> angleIndexes = new List<int>();
-                angles.ForEach(x => angleIndexes.Add(x.Index));
-
-                double sum = angleIndexes.Sum();
+                double sum = angles.Sum(x => x.Index);
                 double halfPercent = angles.Count / 2.0f;
-                // All angles set to 0 or 1
-                int mostAngleIndex = sum < halfPercent ? 0 : 1;
+
+                int mostAngleIndex = sum < halfPercent ? 0 : 1; // All angles set to 0 or 1
                 System.Diagnostics.Debug.WriteLine($"Set All Angle to mostAngleIndex({mostAngleIndex})");
-                for (int i = 0; i < angles.Count; ++i)
+                foreach (var angle in angles)
                 {
-                    angles[i].Index = mostAngleIndex;
+                    angle.Index = mostAngleIndex;
                 }
             }
 
