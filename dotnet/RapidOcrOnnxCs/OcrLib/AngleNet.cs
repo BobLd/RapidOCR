@@ -54,8 +54,7 @@ namespace OcrLiteLib
                     var startTicks = DateTime.Now.Ticks;
                     var angle = GetAngle(partImgs[i]);
                     var endTicks = DateTime.Now.Ticks;
-                    var angleTime = (endTicks - startTicks) / 10000F;
-                    angle.Time = angleTime;
+                    angle.Time = (endTicks - startTicks) / 10000F;
                     angles.Add(angle);
                 }
             }
@@ -63,14 +62,16 @@ namespace OcrLiteLib
             {
                 for (int i = 0; i < partImgs.Count; i++)
                 {
-                    var angle = new Angle();
-                    angle.Index = -1;
-                    angle.Score = 0F;
+                    var angle = new Angle
+                    {
+                        Index = -1,
+                        Score = 0F
+                    };
                     angles.Add(angle);
                 }
             }
 
-            //Most Possible AngleIndex
+            // Most Possible AngleIndex
             if (doAngle && mostAngle)
             {
                 List<int> angleIndexes = new List<int>();
@@ -78,24 +79,12 @@ namespace OcrLiteLib
 
                 double sum = angleIndexes.Sum();
                 double halfPercent = angles.Count / 2.0f;
-                int mostAngleIndex;
-                if (sum < halfPercent)
-                {
-                    //all angle set to 0
-                    mostAngleIndex = 0;
-                }
-                else
-                {
-                    //all angle set to 1
-                    mostAngleIndex = 1;
-                }
-
+                // All angles set to 0 or 1
+                int mostAngleIndex = sum < halfPercent ? 0 : 1;
                 System.Diagnostics.Debug.WriteLine($"Set All Angle to mostAngleIndex({mostAngleIndex})");
                 for (int i = 0; i < angles.Count; ++i)
                 {
-                    Angle angle = angles[i];
                     angles[i].Index = mostAngleIndex;
-                    angles[i] = angle;
                 }
             }
 
@@ -104,38 +93,38 @@ namespace OcrLiteLib
 
         private Angle GetAngle(SKBitmap src)
         {
-            Angle angle = new Angle();
-
+            Tensor<float> inputTensors;
             using (var angleImg = src.Resize(new SKSizeI(angleDstWidth, angleDstHeight), SKFilterQuality.High))
             {
-                Tensor<float> inputTensors = OcrUtils.SubtractMeanNormalize(angleImg, MeanValues, NormValues);
-                var inputs = new List<NamedOnnxValue>
-                {
-                    NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
-                };
-                try
-                {
-                    using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
-                    {
-                        var resultsArray = results.ToArray();
-                        System.Diagnostics.Debug.WriteLine(resultsArray);
-                        float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
-                        return ScoreToAngle(outputData, angleCols);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                    //throw;
-                }
-
-                return angle;
+                inputTensors = OcrUtils.SubtractMeanNormalize(angleImg, MeanValues, NormValues);
             }
+
+            var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+            };
+
+            try
+            {
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
+                {
+                    var resultsArray = results.ToArray();
+                    System.Diagnostics.Debug.WriteLine(resultsArray);
+                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+                    return ScoreToAngle(outputData, angleCols);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
+                //throw;
+            }
+
+            return new Angle();
         }
 
-        private Angle ScoreToAngle(float[] srcData, int angleCols)
+        private static Angle ScoreToAngle(float[] srcData, int angleCols)
         {
-            Angle angle = new Angle();
             int angleIndex = 0;
             float maxValue = -1000.0F;
             for (int i = 0; i < angleCols; i++)
@@ -148,9 +137,11 @@ namespace OcrLiteLib
                 }
             }
 
-            angle.Index = angleIndex;
-            angle.Score = maxValue;
-            return angle;
+            return new Angle
+            {
+                Index = angleIndex,
+                Score = maxValue
+            };
         }
     }
 }
