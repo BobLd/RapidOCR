@@ -245,7 +245,7 @@ namespace OcrLiteLib
             //Console.WriteLine($"fullDetectTime({fullDetectTime}ms)");
 
             //cropped to original size
-            Mat boxImg = new Mat(textBoxPaddingImg, originRect);
+            //Mat boxImg = new Mat(textBoxPaddingImg, originRect);
 
             StringBuilder strRes = new StringBuilder();
             textBlocks.ForEach(x => strRes.AppendLine(x.Text));
@@ -253,7 +253,7 @@ namespace OcrLiteLib
             OcrResult ocrResult = new OcrResult();
             ocrResult.TextBlocks = textBlocks;
             ocrResult.DbNetTime = dbNetTime;
-            ocrResult.BoxImg = boxImg;
+            //ocrResult.BoxImg = boxImg;
             ocrResult.DetectTime = fullDetectTime;
             ocrResult.StrRes = strRes.ToString();
 
