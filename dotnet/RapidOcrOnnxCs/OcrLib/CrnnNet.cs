@@ -1,17 +1,15 @@
-﻿using Emgu.CV;
-using Microsoft.ML.OnnxRuntime;
-using Microsoft.ML.OnnxRuntime.Tensors;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
 
 namespace OcrLiteLib
 {
-    class CrnnNet
+    internal sealed class CrnnNet
     {
         private readonly float[] MeanValues = { 127.5F, 127.5F, 127.5F };
         private readonly float[] NormValues = { 1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F };
@@ -22,7 +20,9 @@ namespace OcrLiteLib
         private List<string> keys;
         private List<string> inputNames;
 
-        public CrnnNet() { }
+        public CrnnNet()
+        {
+        }
 
         ~CrnnNet()
         {
@@ -43,10 +43,11 @@ namespace OcrLiteLib
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message + ex.StackTrace);
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
                 throw ex;
             }
         }
+
         private List<string> InitKeys(string path)
         {
             StreamReader sr = new StreamReader(path, Encoding.UTF8);
@@ -55,27 +56,13 @@ namespace OcrLiteLib
             String line;
             while ((line = sr.ReadLine()) != null)
             {
-                //Console.WriteLine(line.ToString());
+                //System.Diagnostics.Debug.WriteLine(line.ToString());
                 keys.Add(line);
             }
-            keys.Add(" ");
-            Console.WriteLine($"keys Size = {keys.Count}");
-            return keys;
-        }
 
-        public List<TextLine> GetTextLines(List<Mat> partImgs)
-        {
-            List<TextLine> textLines = new List<TextLine>();
-            for (int i = 0; i < partImgs.Count; i++)
-            {
-                var startTicks = DateTime.Now.Ticks;
-                var textLine = GetTextLine(partImgs[i]);
-                var endTicks = DateTime.Now.Ticks;
-                var crnnTime = (endTicks - startTicks) / 10000F;
-                textLine.Time = crnnTime;
-                textLines.Add(textLine);
-            }
-            return textLines;
+            keys.Add(" ");
+            System.Diagnostics.Debug.WriteLine($"keys Size = {keys.Count}");
+            return keys;
         }
 
         public List<TextLine> GetTextLines(IReadOnlyList<SKBitmap> partImgs)
@@ -90,6 +77,7 @@ namespace OcrLiteLib
                 textLine.Time = crnnTime;
                 textLines.Add(textLine);
             }
+
             return textLines;
         }
 
@@ -102,9 +90,6 @@ namespace OcrLiteLib
 
             SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, crnnDstHeight), SKFilterQuality.High);
 
-            //Mat srcResize = new Mat();
-            //CvInvoke.Resize(src, srcResize, new Size(dstWidth, crnnDstHeight));
-
             Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, MeanValues, NormValues);
             var inputs = new List<NamedOnnxValue>
             {
@@ -123,41 +108,7 @@ namespace OcrLiteLib
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message + ex.StackTrace);
-                //throw ex;
-            }
-
-            return textLine;
-        }
-
-        private TextLine GetTextLine(Mat src)
-        {
-            TextLine textLine = new TextLine();
-
-            float scale = (float)crnnDstHeight / (float)src.Rows;
-            int dstWidth = (int)((float)src.Cols * scale);
-
-            Mat srcResize = new Mat();
-            CvInvoke.Resize(src, srcResize, new Size(dstWidth, crnnDstHeight));
-            Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, MeanValues, NormValues);
-            var inputs = new List<NamedOnnxValue>
-            {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
-            };
-            try
-            {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
-                {
-                    var resultsArray = results.ToArray();
-                    var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
-                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
-
-                    return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message + ex.StackTrace);
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
                 //throw ex;
             }
 
@@ -191,12 +142,13 @@ namespace OcrLiteLib
                     scores.Add(maxValue);
                     sb.Append(keys[maxIndex]);
                 }
+
                 lastIndex = maxIndex;
             }
+
             textLine.Text = sb.ToString();
             textLine.CharScores = scores;
             return textLine;
         }
-
     }
 }
