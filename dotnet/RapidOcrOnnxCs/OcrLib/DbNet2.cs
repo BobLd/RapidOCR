@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using ClipperLib;
 using Emgu.CV;
@@ -14,7 +12,6 @@ using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using PContourNet;
 using SkiaSharp;
-using static Emgu.CV.ML.KNearest;
 
 namespace OcrLiteLib
 {
@@ -81,8 +78,6 @@ namespace OcrLiteLib
         private static VectorOfVectorOfPoint FindContours(ReadOnlySpan<byte> array, int rows, int cols)
         {
             var v = array.ToArray().Select(b => (int)(b / byte.MaxValue)).ToArray();
-
-            var test = v.Where(x => x > 0).ToArray();
 
             var contours =
                 PContour.FindContours(v.AsSpan(), cols,
@@ -185,48 +180,10 @@ namespace OcrLiteLib
         {
             float maxSideThresh = 3.0f;//长边门限
             List<TextBox> rsBoxes = new List<TextBox>();
+
             //-----Data preparation-----
             float[] predData = outputTensor[0].AsEnumerable<float>().ToArray();
 
-            byte[] cbufData = new byte[predData.Length];
-            byte[] thresholed = new byte[cbufData.Length];
-
-            for (int i = 0; i < predData.Length; i++)
-            {
-                float data = predData[i];
-                cbufData[i] = Convert.ToByte(data * 255);
-                //-----boxThresh-----
-                thresholed[i] = data > boxThresh ? byte.MaxValue : byte.MinValue;
-            }
-
-            Mat predMat = new Mat(rows, cols, DepthType.Cv32F, 1);
-            predMat.SetTo(predData);
-
-            Mat cbufMat = new Mat(rows, cols, DepthType.Cv8U, 1);
-            cbufMat.SetTo(cbufData);
-
-            //-----boxThresh-----
-            Mat thresholdMat = new Mat(rows, cols, DepthType.Cv8U, 1);
-            thresholdMat.SetTo(thresholed);
-
-            Image<Bgr, Byte> imgethresholdMat = thresholdMat.Clone().ToImage<Bgr, Byte>();
-            imgethresholdMat.Save("imgethresholdMat.bmp");
-
-            //-----dilate-----
-            Mat dilateMat = new Mat();
-            Mat dilateElement = CvInvoke.GetStructuringElement(ElementShape.Rectangle, new Size(2, 2), new Point(-1, -1));
-            CvInvoke.Dilate(thresholdMat, dilateMat, dilateElement, new Point(-1, -1), 1, BorderType.Default, new MCvScalar(128, 128, 128));
-
-            Image<Bgr, Byte> imgeOrigenal = dilateMat.Clone().ToImage<Bgr, Byte>();
-            imgeOrigenal.Save("dilateMat.bmp");
-
-            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
-
-            CvInvoke.FindContours(dilateMat, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
-
-            contours = FindContours(dilateMat.GetData().Cast<byte>().ToArray(), rows, cols);
-
-            // Skia
             var gray8 = new SKImageInfo()
             {
                 Height = rows,
@@ -235,18 +192,18 @@ namespace OcrLiteLib
                 ColorType = SKColorType.Gray8
             };
 
+            SKImage predMatImage = SKImage.FromPixelCopy(gray8, predData.Select(b => Convert.ToByte(b * 255)).ToArray());
+
+            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+
             var crop = new SKRectI(0, 0, cols, rows);
 
-            byte[] rawPixels = new byte[predData.Length];
+            Span<byte> rawPixels = new byte[predData.Length];
             for (int i = 0; i < predData.Length; i++)
             {
                 // Thresolding
                 rawPixels[i] = predData[i] > boxThresh ? byte.MaxValue : byte.MinValue;
             }
-
-            // No need to scale back yet, we just need to un-pad
-
-
 
             const int dilateRadius = 2;
 
@@ -254,8 +211,6 @@ namespace OcrLiteLib
             using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
             using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI subset, out SKPointI offset)) // Dilate
             using (var croppedDilatedSubset = dilated.Subset(crop)) // Trim image due to dilate
-            //using (var pixels = croppedDilatedSubset.PeekPixels())
-            //using (var pixelsGray8 = pixels.WithAlphaType(SKAlphaType.Opaque).WithColorType(SKColorType.Gray8))
             {
                 IntPtr buffer = Marshal.AllocHGlobal(gray8.BytesSize);
                 try
@@ -265,21 +220,13 @@ namespace OcrLiteLib
 
                     Marshal.Copy(buffer, bytes, 0, rawPixels.Length);
 
-                    //contours = FindContours(bytes, rows, cols);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    throw;
+                    contours = FindContours(bytes, rows, cols);
                 }
                 finally
                 {
                     Marshal.FreeHGlobal(buffer);
                 }
             }
-            // End Skia
-
-
 
             for (int i = 0; i < contours.Size; i++)
             {
@@ -293,7 +240,7 @@ namespace OcrLiteLib
                 {
                     continue;
                 }
-                double score = GetScore(contours[i], predMat);
+                double score = GetScore(contours[i], predMatImage);
                 if (score < boxScoreThresh)
                 {
                     continue;
@@ -408,7 +355,7 @@ namespace OcrLiteLib
             return -1;
         }
 
-        private static double GetScore(VectorOfPoint contours, Mat fMapMat)
+        private static double GetScore(VectorOfPoint contours, SKImage fMapMat)
         {
             short xmin = 9999;
             short xmax = 0;
@@ -421,7 +368,6 @@ namespace OcrLiteLib
                 {
                     if (point.X < xmin)
                     {
-                        //var xx = nd[point.X];
                         xmin = (short)point.X;
                     }
 
@@ -444,44 +390,74 @@ namespace OcrLiteLib
                 int roiWidth = xmax - xmin + 1;
                 int roiHeight = ymax - ymin + 1;
 
-                Image<Gray, float> bitmap = fMapMat.ToImage<Gray, float>();
-                Image<Gray, float> roiBitmap = new Image<Gray, float>(roiWidth, roiHeight);
-                float[,,] dataFloat = bitmap.Data;
-                float[,,] data = roiBitmap.Data;
-
-                for (int j = ymin; j < ymin + roiHeight; j++)
+                var gray8 = new SKImageInfo()
                 {
-                    for (int i = xmin; i < xmin + roiWidth; i++)
+                    Height = roiHeight,
+                    Width = roiWidth,
+                    AlphaType = SKAlphaType.Opaque,
+                    ColorType = SKColorType.Gray8
+                };
+
+                byte[] roiBitmapSkBytes = new byte[gray8.BytesSize];
+
+                using (SKImage roiBitmapSk = fMapMat.Subset(new SKRectI(xmin, ymin, xmax, ymax)))
+                {
+                    IntPtr buffer = Marshal.AllocHGlobal(gray8.BytesSize);
+                    try
                     {
-                        try
-                        {
-                            data[j - ymin, i - xmin, 0] = dataFloat[j, i, 0];
-                        }
-                        catch (Exception ex2)
-                        {
-                            Console.WriteLine(ex2.Message);
-                        }
+                        roiBitmapSk.ReadPixels(gray8, buffer);
+                        Marshal.Copy(buffer, roiBitmapSkBytes, 0, gray8.BytesSize);
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(buffer);
                     }
                 }
 
-                Mat mask = Mat.Zeros(roiHeight, roiWidth, DepthType.Cv8U, 1);
-                List<Point> pts = new List<Point>();
-                foreach (Point point in contours.ToArray())
+                long sum = 0;
+                int count = 0;
+
+                using (SKBitmap mask = new SKBitmap(gray8))
+                using (SKCanvas canvas = new SKCanvas(mask))
+                using (SKPaint maskPaint = new SKPaint() { Color = SKColors.White, Style = SKPaintStyle.Fill })
                 {
-                    pts.Add(new Point(point.X - xmin, point.Y - ymin));
+                    canvas.Clear(SKColors.Black);
+
+                    var points = contours.ToArray();
+                    SKPath path = new SKPath();
+
+                    Point first = points[0];
+                    path.MoveTo(first.X - xmin, first.Y - ymin);
+                    for (int p = 1; p < points.Length; p++)
+                    {
+                        Point point = points[p];
+                        path.LineTo(point.X - xmin, point.Y - ymin);
+                    }
+                    path.Close();
+
+                    canvas.DrawPath(path, maskPaint);
+
+                    for (int i = 0; i < mask.ByteCount; i++)
+                    {
+                        if (mask.Bytes[i] == 255)
+                        {
+                            sum += roiBitmapSkBytes[i];
+                            count++;
+                        }
+                    }
+
+                    path.Dispose();
                 }
 
-                using (VectorOfPoint vp = new VectorOfPoint(pts.ToArray<Point>()))
-                using (VectorOfVectorOfPoint vvp = new VectorOfVectorOfPoint(vp))
+                if (count == 0)
                 {
-                    CvInvoke.FillPoly(mask, vvp, new MCvScalar(1));
+                    return 0;
                 }
-
-                return CvInvoke.Mean(roiBitmap, mask).V0;
+                return sum / (double)count / byte.MaxValue;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message + ex.StackTrace);
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
             }
 
             return 0;
