@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ClipperLib;
@@ -32,10 +31,13 @@ namespace OcrLiteLib
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
+                var op = new SessionOptions
+                {
+                    GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
+                    InterOpNumThreads = numThread,
+                    IntraOpNumThreads = numThread
+                };
+
                 dbNet = new InferenceSession(path, op);
                 inputNames = dbNet.InputMetadata.Keys.ToList();
             }
@@ -50,7 +52,7 @@ namespace OcrLiteLib
         {
             using (var srcResize = src.Resize(new SKSizeI(scale.DstWidth, scale.DstHeight), SKFilterQuality.High))
             {
-                Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, MeanValues, NormValues);
+                Tensor<float> inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
                 var inputs = new List<NamedOnnxValue>
                 {
                     NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
@@ -72,7 +74,7 @@ namespace OcrLiteLib
             }
         }
 
-        private static Point[][] FindContours(ReadOnlySpan<byte> array, int rows, int cols)
+        private static SKPointI[][] FindContours(ReadOnlySpan<byte> array, int rows, int cols)
         {
             var v = array.ToArray().Select(b => (int)(b / byte.MaxValue)).ToArray();
             var contours = PContour.FindContours(v.AsSpan(), cols, rows);
@@ -108,8 +110,6 @@ namespace OcrLiteLib
                 ColorType = SKColorType.Gray8
             };
 
-            SKImage predMatImage = SKImage.FromPixelCopy(gray8, predData.Select(b => Convert.ToByte(b * 255)).ToArray());
-
             var crop = new SKRectI(0, 0, cols, rows);
 
             Span<byte> rawPixels = new byte[predData.Length];
@@ -121,7 +121,7 @@ namespace OcrLiteLib
 
             const int dilateRadius = 2;
 
-            Point[][] contours;
+            SKPointI[][] contours;
             using (var skImage = SKImage.FromPixelCopy(gray8, rawPixels))
             using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
             using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI _, out SKPointI _)) // Dilate
@@ -143,75 +143,81 @@ namespace OcrLiteLib
                 }
             }
 
-            for (int i = 0; i < contours.Length; i++)
+            using (SKImage predMatImage = SKImage.FromPixelCopy(gray8, predData.Select(b => Convert.ToByte(b * 255)).ToArray()))
             {
-                if (contours[i].Length <= 2)
+                for (int i = 0; i < contours.Length; i++)
                 {
-                    continue;
+                    if (contours[i].Length <= 2)
+                    {
+                        continue;
+                    }
+
+                    float maxSide = 0;
+                    List<SKPoint> minBox = GetMiniBox(contours[i], out maxSide);
+                    if (maxSide < maxSideThresh)
+                    {
+                        continue;
+                    }
+
+                    double score = GetScore(contours[i], predMatImage);
+                    if (score < boxScoreThresh)
+                    {
+                        continue;
+                    }
+
+                    List<SKPointI> clipBox = Unclip(minBox, unClipRatio);
+                    if (clipBox == null)
+                    {
+                        continue;
+                    }
+
+                    List<SKPoint> clipMinBox = GetMiniBox(clipBox, out maxSide);
+                    if (maxSide < maxSideThresh + 2)
+                    {
+                        continue;
+                    }
+
+                    List<SKPointI> finalPoints = new List<SKPointI>();
+                    foreach (var item in clipMinBox)
+                    {
+                        int x = (int)(item.X / s.ScaleWidth);
+                        int ptx = Math.Min(Math.Max(x, 0), s.SrcWidth);
+
+                        int y = (int)(item.Y / s.ScaleHeight);
+                        int pty = Math.Min(Math.Max(y, 0), s.SrcHeight);
+
+                        SKPointI dstPt = new SKPointI(ptx, pty);
+                        finalPoints.Add(dstPt);
+                    }
+
+                    var textBox = new TextBox
+                    {
+                        Score = (float)score,
+                        Points = finalPoints
+                    };
+                    rsBoxes.Add(textBox);
                 }
-
-                float maxSide = 0;
-                List<PointF> minBox = GetMiniBox(contours[i], out maxSide);
-                if (maxSide < maxSideThresh)
-                {
-                    continue;
-                }
-
-                double score = GetScore(contours[i], predMatImage);
-                if (score < boxScoreThresh)
-                {
-                    continue;
-                }
-
-                List<Point> clipBox = Unclip(minBox, unClipRatio);
-                if (clipBox == null)
-                {
-                    continue;
-                }
-
-                List<PointF> clipMinBox = GetMiniBox(clipBox, out maxSide);
-                if (maxSide < maxSideThresh + 2)
-                {
-                    continue;
-                }
-
-                List<Point> finalPoints = new List<Point>();
-                foreach (var item in clipMinBox)
-                {
-                    int x = (int)(item.X / s.ScaleWidth);
-                    int ptx = Math.Min(Math.Max(x, 0), s.SrcWidth);
-
-                    int y = (int)(item.Y / s.ScaleHeight);
-                    int pty = Math.Min(Math.Max(y, 0), s.SrcHeight);
-                    Point dstPt = new Point(ptx, pty);
-                    finalPoints.Add(dstPt);
-                }
-
-                TextBox textBox = new TextBox();
-                textBox.Score = (float)score;
-                textBox.Points = finalPoints;
-                rsBoxes.Add(textBox);
             }
 
             rsBoxes.Reverse();
             return rsBoxes;
         }
 
-        private static List<PointF> GetMiniBox(List<Point> contours, out float minEdgeSize)
+        private static List<SKPoint> GetMiniBox(List<SKPointI> contours, out float minEdgeSize)
         {
             return GetMiniBox(contours.ToArray(), out minEdgeSize);
         }
 
-        private static List<PointF> GetMiniBox(Point[] contours, out float minEdgeSize)
+        private static List<SKPoint> GetMiniBox(SKPointI[] contours, out float minEdgeSize)
         {
-            List<PointF> box = new List<PointF>();
+            List<SKPoint> box = new List<SKPoint>();
 
-            PointF[] points = GeometryExtensions.MinimumAreaRectangle(contours);
+            SKPoint[] points = GeometryExtensions.MinimumAreaRectangle(contours);
 
             var size = GeometryExtensions.GetSize(points);
             minEdgeSize = Math.Min(size.width, size.height);
 
-            List<PointF> thePoints = new List<PointF>(points);
+            List<SKPoint> thePoints = new List<SKPoint>(points);
             thePoints.Sort(CompareByX);
 
             int index_1 = 0, index_2 = 1, index_3 = 2, index_4 = 3;
@@ -245,7 +251,7 @@ namespace OcrLiteLib
             return box;
         }
 
-        public static int CompareByX(PointF left, PointF right)
+        public static int CompareByX(SKPoint left, SKPoint right)
         {
             if (left == null && right == null)
             {
@@ -275,7 +281,7 @@ namespace OcrLiteLib
             return -1;
         }
 
-        private static double GetScore(Point[] contours, SKImage fMapMat)
+        private static double GetScore(SKPointI[] contours, SKImage fMapMat)
         {
             short xmin = 9999;
             short xmax = 0;
@@ -284,7 +290,7 @@ namespace OcrLiteLib
 
             try
             {
-                foreach (Point point in contours)
+                foreach (SKPointI point in contours)
                 {
                     if (point.X < xmin)
                     {
@@ -346,11 +352,11 @@ namespace OcrLiteLib
                     var points = contours.ToArray();
                     SKPath path = new SKPath();
 
-                    Point first = points[0];
+                    SKPointI first = points[0];
                     path.MoveTo(first.X - xmin, first.Y - ymin);
                     for (int p = 1; p < points.Length; p++)
                     {
-                        Point point = points[p];
+                        SKPointI point = points[p];
                         path.LineTo(point.X - xmin, point.Y - ymin);
                     }
                     path.Close();
@@ -359,7 +365,7 @@ namespace OcrLiteLib
 
                     for (int i = 0; i < mask.ByteCount; i++)
                     {
-                        if (mask.Bytes[i] == 255)
+                        if (mask.Bytes[i] == byte.MaxValue)
                         {
                             sum += roiBitmapSkBytes[i];
                             count++;
@@ -383,9 +389,9 @@ namespace OcrLiteLib
             return 0;
         }
 
-        private static List<Point> Unclip(List<PointF> box, float unclip_ratio)
+        private static List<SKPointI> Unclip(List<SKPoint> box, float unclip_ratio)
         {
-            PointF[] points = GeometryExtensionsF.MinimumAreaRectangle(box.ToArray());
+            SKPoint[] points = GeometryExtensionsF.MinimumAreaRectangle(box.ToArray());
             var size = GeometryExtensions.GetSize(points);
 
             if (size.height < 1.001 && size.width < 1.001)
@@ -394,13 +400,13 @@ namespace OcrLiteLib
             }
 
             List<IntPoint> theCliperPts = new List<IntPoint>();
-            foreach (PointF pt in box)
+            foreach (SKPoint pt in box)
             {
                 IntPoint a1 = new IntPoint((int)pt.X, (int)pt.Y);
                 theCliperPts.Add(a1);
             }
 
-            float area = Math.Abs(SignedPolygonArea(box.ToArray<PointF>()));
+            float area = Math.Abs(SignedPolygonArea(box.ToArray()));
             double length = LengthOfPoints(box);
             double distance = area * unclip_ratio / length;
 
@@ -413,20 +419,20 @@ namespace OcrLiteLib
                 return null;
             }
 
-            List<Point> retPts = new List<Point>();
+            List<SKPointI> retPts = new List<SKPointI>();
             foreach (IntPoint ip in solution[0])
             {
-                retPts.Add(new Point((int)ip.X, (int)ip.Y));
+                retPts.Add(new SKPointI((int)ip.X, (int)ip.Y));
             }
 
             return retPts;
         }
 
-        private static float SignedPolygonArea(PointF[] Points)
+        private static float SignedPolygonArea(SKPoint[] Points)
         {
             // Add the first point to the end.
             int num_points = Points.Length;
-            PointF[] pts = new PointF[num_points + 1];
+            SKPoint[] pts = new SKPoint[num_points + 1];
             Points.CopyTo(pts, 0);
             pts[num_points] = Points[0];
 
@@ -442,11 +448,11 @@ namespace OcrLiteLib
             return area;
         }
 
-        private static double LengthOfPoints(List<PointF> box)
+        private static double LengthOfPoints(List<SKPoint> box)
         {
             double length = 0;
 
-            PointF pt = box[0];
+            SKPoint pt = box[0];
             double x0 = pt.X;
             double y0 = pt.Y;
             double x1 = 0, y1 = 0, dx = 0, dy = 0;
@@ -455,7 +461,7 @@ namespace OcrLiteLib
             int count = box.Count;
             for (int idx = 1; idx < count; idx++)
             {
-                PointF pts = box[idx];
+                SKPoint pts = box[idx];
                 x1 = pts.X;
                 y1 = pts.Y;
                 dx = x1 - x0;

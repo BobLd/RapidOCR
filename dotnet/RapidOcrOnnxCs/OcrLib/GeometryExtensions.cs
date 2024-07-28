@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Linq;
+using SkiaSharp;
 
 namespace OcrLib
 {
@@ -15,23 +14,23 @@ namespace OcrLib
         /// <param name="point1">The first point.</param>
         /// <param name="point2">The second point.</param>
         /// <param name="point3">The third point.</param>
-        private static bool ccw(Point point1, Point point2, Point point3)
+        private static bool ccw(SKPointI point1, SKPointI point2, SKPointI point3)
         {
             return (point2.X - point1.X) * (point3.Y - point1.Y) > (point2.Y - point1.Y) * (point3.X - point1.X);
         }
 
-        private sealed class PdfPointXYComparer : IComparer<Point>
+        private sealed class PdfPointXYComparer : IComparer<SKPointI>
         {
             public static readonly PdfPointXYComparer Instance = new PdfPointXYComparer();
 
-            public int Compare(Point p1, Point p2)
+            public int Compare(SKPointI p1, SKPointI p2)
             {
                 int comp = p1.X.CompareTo(p2.X);
                 return comp == 0 ? p1.Y.CompareTo(p2.Y) : comp;
             }
         }
 
-        private static double polarAngle(in Point point1, in Point point2)
+        private static double polarAngle(in SKPointI point1, in SKPointI point2)
         {
             // This is used for grouping, we could use Math.Round()
             return Math.Atan2(point2.Y - point1.Y, point2.X - point1.X) % Math.PI;
@@ -40,7 +39,7 @@ namespace OcrLib
         /// <summary>
         /// Algorithm to find the convex hull of the set of points with time complexity O(n log n).
         /// </summary>
-        public static IReadOnlyCollection<Point> GrahamScan(Point[] points)
+        public static IReadOnlyCollection<SKPointI> GrahamScan(SKPointI[] points)
         {
             if (points is null || points.Length == 0)
             {
@@ -58,7 +57,7 @@ namespace OcrLib
             var P0 = points[0];
             var groups = points.Skip(1).GroupBy(p => polarAngle(P0, p)).OrderBy(g => g.Key).ToArray();
 
-            var sortedPoints = ArrayPool<Point>.Shared.Rent(groups.Length);
+            var sortedPoints = ArrayPool<SKPointI>.Shared.Rent(groups.Length);
 
             try
             {
@@ -84,10 +83,10 @@ namespace OcrLib
 
                 if (groups.Length < 2)
                 {
-                    return new Point[] { P0, sortedPoints[0] };
+                    return new SKPointI[] { P0, sortedPoints[0] };
                 }
 
-                var stack = new Stack<Point>();
+                var stack = new Stack<SKPointI>();
                 stack.Push(P0);
                 stack.Push(sortedPoints[0]);
                 stack.Push(sortedPoints[1]);
@@ -107,7 +106,7 @@ namespace OcrLib
             }
             finally
             {
-                ArrayPool<Point>.Shared.Return(sortedPoints);
+                ArrayPool<SKPointI>.Shared.Return(sortedPoints);
             }
         }
 
@@ -116,7 +115,7 @@ namespace OcrLib
         /// and then finding its MAR.
         /// </summary>
         /// <param name="points">The points.</param>
-        public static PointF[] MinimumAreaRectangle(Point[] points)
+        public static SKPoint[] MinimumAreaRectangle(SKPointI[] points)
         {
             if (points?.Any() != true)
             {
@@ -136,7 +135,7 @@ namespace OcrLib
         /// The vertices of P are assumed to be in strict cyclic sequential order, either clockwise or
         /// counter-clockwise relative to the origin P0.
         /// </param>
-        private static PointF[] ParametricPerpendicularProjection(ReadOnlySpan<Point> polygon)
+        private static SKPoint[] ParametricPerpendicularProjection(ReadOnlySpan<SKPointI> polygon)
         {
             if (polygon.Length == 0)
             {
@@ -145,12 +144,12 @@ namespace OcrLib
 
             if (polygon.Length == 1)
             {
-                return new PointF[] { polygon[0], polygon[0] };
+                return new SKPoint[] { polygon[0], polygon[0] };
             }
 
             if (polygon.Length == 2)
             {
-                return new PointF[] { polygon[0], polygon[1] };
+                return new SKPoint[] { polygon[0], polygon[1] };
             }
 
             Span<float> mrb = stackalloc float[8];
@@ -168,8 +167,8 @@ namespace OcrLib
 
             while (true)
             {
-                Point Pk = polygon[k];
-                Point Pj = polygon[j];
+                SKPointI Pk = polygon[k];
+                SKPointI Pj = polygon[j];
 
                 int vX = Pj.X - Pk.X;
                 int vY = Pj.Y - Pk.Y;
@@ -221,7 +220,7 @@ namespace OcrLib
 
                 if (l != -1)
                 {
-                    Point Pl = polygon[l];
+                    SKPointI Pl = polygon[l];
                     float PlMinusQX = Pl.X - QX;
                     float PlMinusQY = Pl.Y - QY;
 
@@ -258,23 +257,23 @@ namespace OcrLib
                 if (k == polygon.Length) break;
             }
 
-            return new PointF[]
+            return new SKPoint[]
             {
-                new PointF(mrb[4], mrb[5]),
-                new PointF(mrb[6], mrb[7]),
-                new PointF(mrb[2], mrb[3]),
-                new PointF(mrb[0], mrb[1])
+                new SKPoint(mrb[4], mrb[5]),
+                new SKPoint(mrb[6], mrb[7]),
+                new SKPoint(mrb[2], mrb[3]),
+                new SKPoint(mrb[0], mrb[1])
             };
 
             // RotatedRectangle(PointF topLeft, PointF topRight, PointF bottomLeft, PointF bottomRight)
         }
 
-        public static (float width, float height) GetSize(PointF[] points)
+        public static (float width, float height) GetSize(SKPoint[] points)
         {
-            PointF TopLeft = points[0];
-            PointF TopRight = points[1];
-            PointF BottomLeft = points[2];
-            PointF BottomRight = points[3];
+            SKPoint TopLeft = points[0];
+            //PointF TopRight = points[1];
+            SKPoint BottomLeft = points[2];
+            SKPoint BottomRight = points[3];
 
             double t = 0;
             if (!BottomRight.Equals(BottomLeft))
@@ -285,13 +284,17 @@ namespace OcrLib
             // handle the case where both bottom points are identical
             t = Math.Atan2(TopLeft.Y - BottomLeft.Y, TopLeft.X - BottomLeft.X) - Math.PI / 2;
 
-            
-
             var cos = (float)Math.Cos(t);
             var sin = (float)Math.Sin(t);
 
-            Matrix inverseRotation = new Matrix(cos, -sin, sin, cos, 0, 0);
-            inverseRotation.TransformPoints(new PointF[] { BottomLeft, BottomRight, TopLeft });
+            //Matrix inverseRotation = new Matrix(cos, -sin, sin, cos, 0, 0);
+            //inverseRotation.TransformPoints(new SKPoint[] { BottomLeft, BottomRight, TopLeft });
+
+            SKMatrix inverseRotation = new SKMatrix(cos, -sin, 0, sin, cos, 0, 0, 0, 1);
+            BottomLeft = inverseRotation.MapPoint(BottomLeft);
+            BottomRight = inverseRotation.MapPoint(BottomRight);
+            TopLeft = inverseRotation.MapPoint(TopLeft);
+
             /*
             var inverseRotation = new TransformationMatrix(
                 cos, -sin, 0,

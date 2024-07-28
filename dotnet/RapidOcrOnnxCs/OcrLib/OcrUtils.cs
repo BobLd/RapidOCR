@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
@@ -9,13 +8,13 @@ namespace OcrLiteLib
 {
     internal static class OcrUtils
     {
-        public static Tensor<float> SubstractMeanNormalize(SKBitmap src, float[] meanVals, float[] normVals)
+        public static Tensor<float> SubtractMeanNormalize(SKBitmap src, float[] meanVals, float[] normVals)
         {
             int cols = src.Width;
             int rows = src.Height;
             int channels = src.BytesPerPixel; //.NumberOfChannels;
 
-            int expChannels = 3;
+            const int expChannels = 3; // Size of meanVals
 
             ReadOnlySpan<byte> span = src.GetPixelSpan();
 
@@ -105,9 +104,9 @@ namespace OcrLiteLib
             return new SKMatrix(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2);
         }
 
-        public static SKBitmap GetRotateCropImage(SKBitmap src, List<Point> box)
+        public static SKBitmap GetRotateCropImage(SKBitmap src, List<SKPointI> box)
         {
-            List<Point> points = new List<Point>();
+            List<SKPointI> points = new List<SKPointI>();
             points.AddRange(box);
 
             int[] collectX = { box[0].X, box[1].X, box[2].X, box[3].X };

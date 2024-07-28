@@ -25,7 +25,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using SkiaSharp;
 
 namespace PContourNet
 {
@@ -147,7 +147,7 @@ namespace PContourNet
         public sealed class Contour
         {
             /** Vertices */
-            public List<Point> points;
+            public List<SKPointI> points;
 
             /** Unique ID, starts from 2 */
             public int id;
@@ -158,7 +158,7 @@ namespace PContourNet
             /** Is this contour a hole (as opposed to outline) */
             public bool isHole;
 
-            public Span<Point> GetSpan()
+            public Span<SKPointI> GetSpan()
             {
                 //ArgumentNullException.ThrowIfNull(points, nameof(points));
 
@@ -279,8 +279,8 @@ namespace PContourNet
                     // ----------------------------------------------------------------
 
                     Contour B = new Contour();
-                    B.points = new List<Point>();
-                    B.points.Add(new Point(j, i));
+                    B.points = new List<SKPointI>();
+                    B.points.Add(new SKPointI(j, i));
                     B.isHole = (j2 == j + 1);
                     B.id = nbd;
                     contours.Add(B);
@@ -359,7 +359,7 @@ namespace PContourNet
                         int i4 = i4j4[0];
                         int j4 = i4j4[1];
 
-                        contours[contours.Count - 1].points.Add(new Point(j4, i4));
+                        contours[contours.Count - 1].points.Add(new SKPointI(j4, i4));
 
                         //(a) If the pixel (i3, j3 + 1) is a O-pixel examined in the
                         //substep (3.3) then fi3, j3 <-  -NBD.
@@ -407,7 +407,7 @@ namespace PContourNet
             return contours;
         }
 
-        private static float PointDistanceToSegment(Point p, Point p0, Point p1)
+        private static float PointDistanceToSegment(SKPointI p, SKPointI p0, SKPointI p1)
         {
             // https://stackoverflow.com/a/6853926
             float x = p.X;
@@ -458,7 +458,7 @@ namespace PContourNet
          * @return           A simplified copy
          * @see              approxPolyDP
          */
-        public static ReadOnlySpan<Point> ApproxPolySimple(ReadOnlySpan<Point> polyline)
+        public static ReadOnlySpan<SKPointI> ApproxPolySimple(ReadOnlySpan<SKPointI> polyline)
         {
             float epsilon = 0.1f;
             if (polyline.Length <= 2)
@@ -467,7 +467,7 @@ namespace PContourNet
             }
 
             int p = 0;
-            Span<Point> ret = new Point[polyline.Length];
+            Span<SKPointI> ret = new SKPointI[polyline.Length];
             ret[p++] = polyline[0];
 
             for (int i = 1; i < polyline.Length - 1; i++)
@@ -495,7 +495,7 @@ namespace PContourNet
  * @return           A simplified copy
  * @see              approxPolySimple
  */
-        public static ReadOnlySpan<Point> ApproxPolyDP(ReadOnlySpan<Point> polyline, float epsilon)
+        public static ReadOnlySpan<SKPointI> ApproxPolyDP(ReadOnlySpan<SKPointI> polyline, float epsilon)
         {
             // https://en.wikipedia.org/wiki/Ramer–Douglas–Peucker_algorithm
             // David Douglas & Thomas Peucker, 
@@ -521,13 +521,13 @@ namespace PContourNet
             }
 
             int p = 0;
-            Span<Point> ret = new Point[polyline.Length]; // List<Point> ret = new List<Point>();
+            Span<SKPointI> ret = new SKPointI[polyline.Length]; // List<Point> ret = new List<Point>();
             if (dmax > epsilon)
             {
                 //List<Point> L = ApproxPolyDP(new List<Point>(polyline.SubList(0, argmax + 1)), epsilon);
                 //List<Point> R = ApproxPolyDP(new List<Point>(polyline.SubList(argmax, polyline.Count)), epsilon);
-                ReadOnlySpan<Point> L = ApproxPolyDP(polyline.SubList(0, argmax + 1), epsilon);
-                ReadOnlySpan<Point> R = ApproxPolyDP(polyline.SubList(argmax, polyline.Length), epsilon);
+                ReadOnlySpan<SKPointI> L = ApproxPolyDP(polyline.SubList(0, argmax + 1), epsilon);
+                ReadOnlySpan<SKPointI> R = ApproxPolyDP(polyline.SubList(argmax, polyline.Length), epsilon);
                 foreach (var l in L.SubList(0, L.Length - 1))
                 {
                     ret[p++] = l;

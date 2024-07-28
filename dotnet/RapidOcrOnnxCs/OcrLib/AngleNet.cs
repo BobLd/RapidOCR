@@ -94,7 +94,7 @@ namespace OcrLiteLib
                 for (int i = 0; i < angles.Count; ++i)
                 {
                     Angle angle = angles[i];
-                    angle.Index = mostAngleIndex;
+                    angles[i].Index = mostAngleIndex;
                     angles[i] = angle;
                 }
             }
@@ -106,30 +106,31 @@ namespace OcrLiteLib
         {
             Angle angle = new Angle();
 
-            var angleImg = src.Resize(new SKSizeI(angleDstWidth, angleDstHeight), SKFilterQuality.High);
-
-            Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(angleImg, MeanValues, NormValues);
-            var inputs = new List<NamedOnnxValue>
+            using (var angleImg = src.Resize(new SKSizeI(angleDstWidth, angleDstHeight), SKFilterQuality.High))
             {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
-            };
-            try
-            {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
+                Tensor<float> inputTensors = OcrUtils.SubtractMeanNormalize(angleImg, MeanValues, NormValues);
+                var inputs = new List<NamedOnnxValue>
                 {
-                    var resultsArray = results.ToArray();
-                    System.Diagnostics.Debug.WriteLine(resultsArray);
-                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
-                    return ScoreToAngle(outputData, angleCols);
+                    NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+                };
+                try
+                {
+                    using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
+                    {
+                        var resultsArray = results.ToArray();
+                        System.Diagnostics.Debug.WriteLine(resultsArray);
+                        float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+                        return ScoreToAngle(outputData, angleCols);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                //throw;
-            }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
+                    //throw;
+                }
 
-            return angle;
+                return angle;
+            }
         }
 
         private Angle ScoreToAngle(float[] srcData, int angleCols)

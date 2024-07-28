@@ -1,38 +1,35 @@
-﻿using Emgu.CV;
-using System;
+﻿using System;
 using SkiaSharp;
 
 namespace OcrLiteLib
 {
-    class ScaleParam
+    public sealed class ScaleParam
     {
-        int srcWidth;
-        int srcHeight;
-        int dstWidth;
-        int dstHeight;
-        float scaleWidth;
-        float scaleHeight;
+        public int SrcWidth { get; set; }
 
-        public int SrcWidth { get => srcWidth; set => srcWidth = value; }
-        public int SrcHeight { get => srcHeight; set => srcHeight = value; }
-        public int DstWidth { get => dstWidth; set => dstWidth = value; }
-        public int DstHeight { get => dstHeight; set => dstHeight = value; }
-        public float ScaleWidth { get => scaleWidth; set => scaleWidth = value; }
-        public float ScaleHeight { get => scaleHeight; set => scaleHeight = value; }
+        public int SrcHeight { get; set; }
+
+        public int DstWidth { get; set; }
+
+        public int DstHeight { get; set; }
+
+        public float ScaleWidth { get; set; }
+
+        public float ScaleHeight { get; set; }
 
         public ScaleParam(int srcWidth, int srcHeight, int dstWidth, int dstHeight, float scaleWidth, float scaleHeight)
         {
-            this.srcWidth = srcWidth;
-            this.srcHeight = srcHeight;
-            this.dstWidth = dstWidth;
-            this.dstHeight = dstHeight;
-            this.scaleWidth = scaleWidth;
-            this.scaleHeight = scaleHeight;
+            SrcWidth = srcWidth;
+            SrcHeight = srcHeight;
+            DstWidth = dstWidth;
+            DstHeight = dstHeight;
+            ScaleWidth = scaleWidth;
+            ScaleHeight = scaleHeight;
         }
 
         public override string ToString()
         {
-            return $"sw:{this.srcWidth},sh:{this.srcHeight},dw:{this.dstWidth},dh:{this.dstHeight},{this.scaleWidth},{this.scaleHeight}";
+            return $"sw:{this.SrcWidth},sh:{this.SrcHeight},dw:{this.DstWidth},dh:{this.DstHeight},{this.ScaleWidth},{this.ScaleHeight}";
         }
 
         public static ScaleParam GetScaleParam(SKBitmap src, int dstSize)
@@ -46,67 +43,32 @@ namespace OcrLiteLib
             float scale = 1.0F;
             if (dstWidth > dstHeight)
             {
-                scale = (float)dstSize / (float)dstWidth;
+                scale = dstSize / (float)dstWidth;
                 dstWidth = dstSize;
-                dstHeight = (int)((float)dstHeight * scale);
+                dstHeight = (int)(dstHeight * scale);
             }
             else
             {
-                scale = (float)dstSize / (float)dstHeight;
+                scale = dstSize / (float)dstHeight;
                 dstHeight = dstSize;
-                dstWidth = (int)((float)dstWidth * scale);
+                dstWidth = (int)(dstWidth * scale);
             }
+
             if (dstWidth % 32 != 0)
             {
                 dstWidth = (dstWidth / 32 - 1) * 32;
                 dstWidth = Math.Max(dstWidth, 32);
             }
+
             if (dstHeight % 32 != 0)
             {
                 dstHeight = (dstHeight / 32 - 1) * 32;
                 dstHeight = Math.Max(dstHeight, 32);
             }
-            float scaleWidth = (float)dstWidth / (float)srcWidth;
-            float scaleHeight = (float)dstHeight / (float)srcHeight;
+
+            float scaleWidth = dstWidth / (float)srcWidth;
+            float scaleHeight = dstHeight / (float)srcHeight;
             return new ScaleParam(srcWidth, srcHeight, dstWidth, dstHeight, scaleWidth, scaleHeight);
         }
-
-        public static ScaleParam GetScaleParam(Mat src, int dstSize)
-        {
-            int srcWidth, srcHeight, dstWidth, dstHeight;
-            srcWidth = src.Cols;
-            dstWidth = src.Cols;
-            srcHeight = src.Rows;
-            dstHeight = src.Rows;
-
-            float scale = 1.0F;
-            if (dstWidth > dstHeight)
-            {
-                scale = (float)dstSize / (float)dstWidth;
-                dstWidth = dstSize;
-                dstHeight = (int)((float)dstHeight * scale);
-            }
-            else
-            {
-                scale = (float)dstSize / (float)dstHeight;
-                dstHeight = dstSize;
-                dstWidth = (int)((float)dstWidth * scale);
-            }
-            if (dstWidth % 32 != 0)
-            {
-                dstWidth = (dstWidth / 32 - 1) * 32;
-                dstWidth = Math.Max(dstWidth, 32);
-            }
-            if (dstHeight % 32 != 0)
-            {
-                dstHeight = (dstHeight / 32 - 1) * 32;
-                dstHeight = Math.Max(dstHeight, 32);
-            }
-            float scaleWidth = (float)dstWidth / (float)srcWidth;
-            float scaleHeight = (float)dstHeight / (float)srcHeight;
-            return new ScaleParam(srcWidth, srcHeight, dstWidth, dstHeight, scaleWidth, scaleHeight);
-        }
-
     }
-
 }

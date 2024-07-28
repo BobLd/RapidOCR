@@ -33,10 +33,13 @@ namespace OcrLiteLib
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
+                SessionOptions op = new SessionOptions
+                {
+                    GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
+                    InterOpNumThreads = numThread,
+                    IntraOpNumThreads = numThread
+                };
+
                 crnnNet = new InferenceSession(path, op);
                 inputNames = crnnNet.InputMetadata.Keys.ToList();
                 keys = InitKeys(keysPath);
@@ -85,34 +88,36 @@ namespace OcrLiteLib
         {
             TextLine textLine = new TextLine();
 
-            float scale = (float)crnnDstHeight / (float)src.Height;
-            int dstWidth = (int)((float)src.Width * scale);
+            float scale = crnnDstHeight / (float)src.Height;
+            int dstWidth = (int)(src.Width * scale);
 
-            SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, crnnDstHeight), SKFilterQuality.High);
-
-            Tensor<float> inputTensors = OcrUtils.SubstractMeanNormalize(srcResize, MeanValues, NormValues);
-            var inputs = new List<NamedOnnxValue>
+            using (SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, crnnDstHeight), SKFilterQuality.High))
             {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
-            };
-            try
-            {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
+                Tensor<float> inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
+                var inputs = new List<NamedOnnxValue>
                 {
-                    var resultsArray = results.ToArray();
-                    var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
-                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+                    NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+                };
 
-                    return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
+                try
+                {
+                    using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
+                    {
+                        var resultsArray = results.ToArray();
+                        var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
+                        float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+
+                        return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                //throw ex;
-            }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
+                    //throw ex;
+                }
 
-            return textLine;
+                return textLine;
+            }
         }
 
         private TextLine ScoreToTextLine(float[] srcData, int h, int w)

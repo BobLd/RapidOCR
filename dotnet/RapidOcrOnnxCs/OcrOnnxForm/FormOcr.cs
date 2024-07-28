@@ -159,7 +159,7 @@ namespace BaiPiaoOcrOnnxCs
             OcrResult ocrResult = ocrEngin.Detect(pathTextBox.Text, padding, imgResize, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle);
             ocrResultTextBox.Text = ocrResult.ToString();
             strRestTextBox.Text = ocrResult.StrRes;
-            pictureBox.Image = ocrResult.BoxImg.ToBitmap();
+            //pictureBox.Image = ocrResult.BoxImg.ToBitmap();
         }
 
         private void partImgCheckBox_CheckedChanged(object sender, EventArgs e)

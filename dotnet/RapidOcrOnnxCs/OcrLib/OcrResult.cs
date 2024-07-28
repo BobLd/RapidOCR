@@ -1,17 +1,18 @@
-﻿using Emgu.CV;
-using System.Collections.Generic;
-using System.Drawing;
+﻿using System.Collections.Generic;
 using System.Text;
+using SkiaSharp;
 
 namespace OcrLiteLib
 {
     public sealed class TextBox
     {
-        public List<Point> Points { get; set; }
+        public List<SKPointI> Points { get; set; }
         public float Score { get; set; }
+
         public override string ToString()
         {
-            return $"TextBox[score({Score}),[x: {Points[0].X}, y: {Points[0].Y}], [x: {Points[1].X}, y: {Points[1].Y}], [x: {Points[2].X}, y: {Points[2].Y}], [x: {Points[3].X}, y: {Points[3].Y}]]";
+            return
+                $"TextBox[score({Score}),[x: {Points[0].X}, y: {Points[0].Y}], [x: {Points[1].X}, y: {Points[1].Y}], [x: {Points[2].X}, y: {Points[2].Y}], [x: {Points[3].X}, y: {Points[3].Y}]]";
         }
     }
 
@@ -20,17 +21,20 @@ namespace OcrLiteLib
         public int Index { get; set; }
         public float Score { get; set; }
         public float Time { get; set; }
+
         public override string ToString()
         {
             string header = Index >= 0 ? "Angle" : "AngleDisabled";
             return $"{header}[Index({Index}), Score({Score}), Time({Time}ms)]";
         }
     }
+
     public sealed class TextLine
     {
         public string Text { get; set; }
         public List<float> CharScores { get; set; }
         public float Time { get; set; }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
@@ -38,9 +42,10 @@ namespace OcrLiteLib
             return $"TextLine[Text({Text}),CharScores({sb.ToString()}),Time({Time}ms)]";
         }
     }
+
     public sealed class TextBlock
     {
-        public List<Point> BoxPoints { get; set; }
+        public List<SKPointI> BoxPoints { get; set; }
         public float BoxScore { get; set; }
         public int AngleIndex { get; set; }
         public float AngleScore { get; set; }
@@ -49,11 +54,13 @@ namespace OcrLiteLib
         public List<float> CharScores { get; set; }
         public float CrnnTime { get; set; }
         public float BlockTime { get; set; }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("├─TextBlock");
-            string textBox = $"│   ├──TextBox[score({BoxScore}),[x: {BoxPoints[0].X}, y: {BoxPoints[0].Y}], [x: {BoxPoints[1].X}, y: {BoxPoints[1].Y}], [x: {BoxPoints[2].X}, y: {BoxPoints[2].Y}], [x: {BoxPoints[3].X}, y: {BoxPoints[3].Y}]]";
+            string textBox =
+                $"│   ├──TextBox[score({BoxScore}),[x: {BoxPoints[0].X}, y: {BoxPoints[0].Y}], [x: {BoxPoints[1].X}, y: {BoxPoints[1].Y}], [x: {BoxPoints[2].X}, y: {BoxPoints[2].Y}], [x: {BoxPoints[3].X}, y: {BoxPoints[3].Y}]]";
             sb.AppendLine(textBox);
             string header = AngleIndex >= 0 ? "Angle" : "AngleDisabled";
             string angle = $"│   ├──{header}[Index({AngleIndex}), Score({AngleScore}), Time({AngleTime}ms)]";
@@ -66,11 +73,12 @@ namespace OcrLiteLib
             return sb.ToString();
         }
     }
+
     public sealed class OcrResult
     {
         public List<TextBlock> TextBlocks { get; set; }
         public float DbNetTime { get; set; }
-        public Mat BoxImg { get; set; }
+        //public Mat BoxImg { get; set; }
         public float DetectTime { get; set; }
         public string StrRes { get; set; }
 
@@ -84,7 +92,5 @@ namespace OcrLiteLib
             sb.AppendLine($"└─StrRes({StrRes})");
             return sb.ToString();
         }
-
     }
 }
-
