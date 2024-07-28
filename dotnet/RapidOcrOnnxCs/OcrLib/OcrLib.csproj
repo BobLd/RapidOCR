@@ -174,9 +174,12 @@
     <Compile Include="AngleNet.cs" />
     <Compile Include="CrnnNet.cs" />
     <Compile Include="DbNet.cs" />
+    <Compile Include="DbNet2.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="OcrLite.cs" />
     <Compile Include="OcrResult.cs" />
     <Compile Include="OcrUtils.cs" />
+    <Compile Include="PContour.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ScaleParam.cs" />
   </ItemGroup>
