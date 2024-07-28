@@ -80,7 +80,7 @@ namespace RapidOcrNet
 
                 if (groups.Length < 2)
                 {
-                    return new SKPoint[] { P0, sortedPoints[0] };
+                    return [P0, sortedPoints[0]];
                 }
 
                 var stack = new Stack<SKPoint>();

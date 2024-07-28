@@ -80,7 +80,7 @@ namespace RapidOcrNet
 
                 if (groups.Length < 2)
                 {
-                    return new SKPointI[] { P0, sortedPoints[0] };
+                    return [P0, sortedPoints[0]];
                 }
 
                 var stack = new Stack<SKPointI>();
@@ -141,12 +141,12 @@ namespace RapidOcrNet
 
             if (polygon.Length == 1)
             {
-                return new SKPoint[] { polygon[0], polygon[0] };
+                return [polygon[0], polygon[0]];
             }
 
             if (polygon.Length == 2)
             {
-                return new SKPoint[] { polygon[0], polygon[1] };
+                return [polygon[0], polygon[1]];
             }
 
             Span<float> mrb = stackalloc float[8];
@@ -254,13 +254,13 @@ namespace RapidOcrNet
                 if (k == polygon.Length) break;
             }
 
-            return new SKPoint[]
-            {
+            return
+            [
                 new SKPoint(mrb[4], mrb[5]),
                 new SKPoint(mrb[6], mrb[7]),
                 new SKPoint(mrb[2], mrb[3]),
                 new SKPoint(mrb[0], mrb[1])
-            };
+            ];
 
             // RotatedRectangle(PointF topLeft, PointF topRight, PointF bottomLeft, PointF bottomRight)
         }
