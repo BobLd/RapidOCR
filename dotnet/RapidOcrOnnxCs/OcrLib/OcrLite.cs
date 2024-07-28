@@ -131,14 +131,14 @@ namespace OcrLiteLib
             StringBuilder strRes = new StringBuilder();
             textBlocks.ForEach(x => strRes.AppendLine(x.Text));
 
-            OcrResult ocrResult = new OcrResult();
-            ocrResult.TextBlocks = textBlocks;
-            ocrResult.DbNetTime = dbNetTime;
-            //ocrResult.BoxImg = boxImg;
-            ocrResult.DetectTime = fullDetectTime;
-            ocrResult.StrRes = strRes.ToString();
-
-            return ocrResult;
+            return new OcrResult
+            {
+                TextBlocks = textBlocks,
+                DbNetTime = dbNetTime,
+                //ocrResult.BoxImg = boxImg;
+                DetectTime = fullDetectTime,
+                StrRes = strRes.ToString()
+            };
         }
     }
 }

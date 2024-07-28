@@ -48,30 +48,36 @@ namespace OcrLiteLib
             }
         }
 
-        public List<TextBox> GetTextBoxes(SKBitmap src, ScaleParam scale, float boxScoreThresh, float boxThresh, float unClipRatio)
+        public List<TextBox> GetTextBoxes(SKBitmap src, ScaleParam scale, float boxScoreThresh, float boxThresh,
+            float unClipRatio)
         {
+            Tensor<float> inputTensors;
             using (var srcResize = src.Resize(new SKSizeI(scale.DstWidth, scale.DstHeight), SKFilterQuality.High))
             {
-                Tensor<float> inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
-                var inputs = new List<NamedOnnxValue>
-                {
-                    NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
-                };
-                try
-                {
-                    using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = dbNet.Run(inputs))
-                    {
-                        var resultsArray = results.ToArray();
-                        System.Diagnostics.Debug.WriteLine(resultsArray);
-                        return GetTextBoxes(resultsArray, srcResize.Height, srcResize.Width, scale, boxScoreThresh, boxThresh, unClipRatio);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                }
-                return null;
+                inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
             }
+
+            var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+            };
+
+            try
+            {
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = dbNet.Run(inputs))
+                {
+                    var resultsArray = results.ToArray();
+                    System.Diagnostics.Debug.WriteLine(resultsArray);
+                    return GetTextBoxes(resultsArray, scale.DstHeight, scale.DstWidth, scale, boxScoreThresh,
+                        boxThresh, unClipRatio);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
+            }
+
+            return null;
         }
 
         private static SKPointI[][] FindContours(ReadOnlySpan<byte> array, int rows, int cols)

@@ -33,7 +33,7 @@ namespace OcrLiteLib
         {
             try
             {
-                SessionOptions op = new SessionOptions
+                var op = new SessionOptions
                 {
                     GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
                     InterOpNumThreads = numThread,
@@ -54,8 +54,7 @@ namespace OcrLiteLib
         private List<string> InitKeys(string path)
         {
             StreamReader sr = new StreamReader(path, Encoding.UTF8);
-            List<string> keys = new List<string>();
-            keys.Add("#");
+            List<string> keys = new List<string> { "#" };
             String line;
             while ((line = sr.ReadLine()) != null)
             {
@@ -76,8 +75,7 @@ namespace OcrLiteLib
                 var startTicks = DateTime.Now.Ticks;
                 var textLine = GetTextLine(partImgs[i]);
                 var endTicks = DateTime.Now.Ticks;
-                var crnnTime = (endTicks - startTicks) / 10000F;
-                textLine.Time = crnnTime;
+                textLine.Time = (endTicks - startTicks) / 10000F;
                 textLines.Add(textLine);
             }
 
@@ -91,33 +89,35 @@ namespace OcrLiteLib
             float scale = crnnDstHeight / (float)src.Height;
             int dstWidth = (int)(src.Width * scale);
 
+            Tensor<float> inputTensors;
             using (SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, crnnDstHeight), SKFilterQuality.High))
             {
-                Tensor<float> inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
-                var inputs = new List<NamedOnnxValue>
-                {
-                    NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
-                };
-
-                try
-                {
-                    using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
-                    {
-                        var resultsArray = results.ToArray();
-                        var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
-                        float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
-
-                        return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                    //throw ex;
-                }
-
-                return textLine;
+                inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
             }
+
+            var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+            };
+
+            try
+            {
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = crnnNet.Run(inputs))
+                {
+                    var resultsArray = results.ToArray();
+                    var dimensions = resultsArray[0].AsTensor<float>().Dimensions;
+                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
+
+                    return ScoreToTextLine(outputData, dimensions[1], dimensions[2]);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
+                //throw ex;
+            }
+
+            return textLine;
         }
 
         private TextLine ScoreToTextLine(float[] srcData, int h, int w)
