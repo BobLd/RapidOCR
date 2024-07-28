@@ -1,10 +1,6 @@
-﻿using Emgu.CV;
-using Emgu.CV.CvEnum;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Text;
 using SkiaSharp;
