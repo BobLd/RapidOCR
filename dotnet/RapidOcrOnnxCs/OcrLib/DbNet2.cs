@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using ClipperLib;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -10,6 +13,8 @@ using Emgu.CV.Util;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using PContourNet;
+using SkiaSharp;
+using static Emgu.CV.ML.KNearest;
 
 namespace OcrLiteLib
 {
@@ -73,9 +78,15 @@ namespace OcrLiteLib
             return null;
         }
 
-        private static VectorOfVectorOfPoint FindContours(byte[] array, int rows, int cols)
+        private static VectorOfVectorOfPoint FindContours(ReadOnlySpan<byte> array, int rows, int cols)
         {
-            var contours = PContour.FindContours(array.Select(b => (int)b).ToArray().AsSpan(), cols, rows);
+            var v = array.ToArray().Select(b => (int)(b / byte.MaxValue)).ToArray();
+
+            var test = v.Where(x => x > 0).ToArray();
+
+            var contours =
+                PContour.FindContours(v.AsSpan(), cols,
+                    rows);
 
             var envelops = contours.Select(c => PContour.ApproxPolyDP(c.points.ToArray(), 1).ToArray()).ToArray();
 
@@ -214,6 +225,61 @@ namespace OcrLiteLib
             CvInvoke.FindContours(dilateMat, contours, null, RetrType.List, ChainApproxMethod.ChainApproxSimple);
 
             contours = FindContours(dilateMat.GetData().Cast<byte>().ToArray(), rows, cols);
+
+            // Skia
+            var gray8 = new SKImageInfo()
+            {
+                Height = rows,
+                Width = cols,
+                AlphaType = SKAlphaType.Opaque,
+                ColorType = SKColorType.Gray8
+            };
+
+            var crop = new SKRectI(0, 0, cols, rows);
+
+            byte[] rawPixels = new byte[predData.Length];
+            for (int i = 0; i < predData.Length; i++)
+            {
+                // Thresolding
+                rawPixels[i] = predData[i] > boxThresh ? byte.MaxValue : byte.MinValue;
+            }
+
+            // No need to scale back yet, we just need to un-pad
+
+
+
+            const int dilateRadius = 2;
+
+            using (var skImage = SKImage.FromPixelCopy(gray8, rawPixels)) // use pointer?
+            using (var filter = SKImageFilter.CreateDilate(dilateRadius, dilateRadius))
+            using (var dilated = skImage.ApplyImageFilter(filter, crop, crop, out SKRectI subset, out SKPointI offset)) // Dilate
+            using (var croppedDilatedSubset = dilated.Subset(crop)) // Trim image due to dilate
+            //using (var pixels = croppedDilatedSubset.PeekPixels())
+            //using (var pixelsGray8 = pixels.WithAlphaType(SKAlphaType.Opaque).WithColorType(SKColorType.Gray8))
+            {
+                IntPtr buffer = Marshal.AllocHGlobal(gray8.BytesSize);
+                try
+                {
+                    croppedDilatedSubset.ReadPixels(gray8, buffer);
+                    byte[] bytes = new byte[rawPixels.Length];
+
+                    Marshal.Copy(buffer, bytes, 0, rawPixels.Length);
+
+                    //contours = FindContours(bytes, rows, cols);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    throw;
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buffer);
+                }
+            }
+            // End Skia
+
+
 
             for (int i = 0; i < contours.Size; i++)
             {
