@@ -31,8 +31,9 @@ namespace RapidOcrNet
     {
         private const int N_PIXEL_NEIGHBOR = 8;
 
-        // give pixel neighborhood counter-clockwise ID's for
-        // easier access with findContour algorithm
+        /// <summary>
+        /// Give pixel neighborhood counter-clockwise ID's for easier access with findContour algorithm.
+        /// </summary>
         private static int[] NeighborIdToIndex(int i, int j, int id)
         {
             switch (id)
@@ -105,7 +106,9 @@ namespace RapidOcrNet
             return -1;
         }
 
-        // first counter clockwise non-zero element in neighborhood
+        /// <summary>
+        /// First counter clockwise non-zero element in neighborhood.
+        /// </summary>
         private static int[] ccwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
@@ -122,8 +125,10 @@ namespace RapidOcrNet
             return null;
         }
 
-        // first clockwise non-zero element in neighborhood
-        private static int[] cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
+        /// <summary>
+        /// First clockwise non-zero element in neighborhood.
+        /// </summary>
+        private static int[]? cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
             for (int k = 0; k < N_PIXEL_NEIGHBOR; k++)
@@ -139,9 +144,9 @@ namespace RapidOcrNet
             return null;
         }
 
-        /** Data structure for a contour,
-  * encodes vertices as well as hierarchical relationship to other contours
-  */
+        /// <summary>
+        /// Data structure for a contour, encodes vertices as well as hierarchical relationship to other contours.
+        /// </summary>
         public sealed class Contour
         {
             /** Vertices */
@@ -164,22 +169,20 @@ namespace RapidOcrNet
             }
         }
 
-        /**
- * Find contours in a binary image
- * <p>
- * Implements Suzuki, S. and Abe, K.
- * Topological Structural Analysis of Digitized Binary Images by Border Following.
- * <p>
- * See source code for step-by-step correspondence to the paper's algorithm
- * description.
- * @param  F    The bitmap, stored in 1-dimensional row-major form.
- *              0=background, 1=foreground, will be modified by the function
- *              to hold semantic information
- * @param  w    Width of the bitmap
- * @param  h    Height of the bitmap
- * @return      An array of contours found in the image.
- * @see         Contour
- */
+        /// <summary>
+        /// Find contours in a binary image.
+        /// <para>
+        /// Implements Suzuki, S. and Abe, K.
+        /// Topological Structural Analysis of Digitized Binary Images by Border Following.
+        /// </para>
+        /// See source code for step-by-step correspondence to the paper's algorithm description.
+        /// </summary>
+        /// <param name="F">The bitmap, stored in 1-dimensional row-major form.
+        /// 0=background,
+        /// 1=foreground, will be modified by the function to hold semantic information.</param>
+        /// <param name="w">Width of the bitmap.</param>
+        /// <param name="h">Height of the bitmap.</param>
+        /// <returns>An array of contours found in the image.</returns>
         public static List<Contour> FindContours(Span<int> F, int w, int h)
         {
             // Topological Structural Analysis of Digitized Binary Images by Border Following.
@@ -295,25 +298,11 @@ namespace RapidOcrNet
 
                     if (B0.isHole)
                     {
-                        if (B.isHole)
-                        {
-                            B.parent = B0.parent;
-                        }
-                        else
-                        {
-                            B.parent = lnbd;
-                        }
+                        B.parent = B.isHole ? B0.parent : lnbd;
                     }
                     else
                     {
-                        if (B.isHole)
-                        {
-                            B.parent = lnbd;
-                        }
-                        else
-                        {
-                            B.parent = B0.parent;
-                        }
+                        B.parent = B.isHole ? lnbd : B0.parent;
                     }
 
                     //(3) From the starting point (i, j), follow the detected border: 
@@ -324,8 +313,8 @@ namespace RapidOcrNet
                     //Let (i1, j1) be the first found nonzero pixel. If no nonzero 
                     //pixel is found, assign -NBD to fij and go to (4).
                     int i1 = -1, j1 = -1;
-                    int[] i1j1 = cwNon0(F, w, h, i, j, i2, j2, 0);
-                    if (i1j1 == null)
+                    int[]? i1j1 = cwNon0(F, w, h, i, j, i2, j2, 0);
+                    if (i1j1 is null)
                     {
                         F[i * w + j] = -nbd;
                         //go to (4)
@@ -446,16 +435,14 @@ namespace RapidOcrNet
 
             float dx = x - xx;
             float dy = y - yy;
-            return (float)Math.Sqrt(dx * dx + dy * dy);
+            return MathF.Sqrt(dx * dx + dy * dy);
         }
 
-        /**
-         * Simplify contour by removing definately extraneous vertices,
-         * without modifying shape of the contour.
-         * @param  polyline  The vertices
-         * @return           A simplified copy
-         * @see              approxPolyDP
-         */
+        /// <summary>
+        /// Simplify contour by removing definitely extraneous vertices, without modifying shape of the contour.
+        /// </summary>
+        /// <param name="polyline">The vertices.</param>
+        /// <returns>A simplified copy.</returns>
         public static ReadOnlySpan<SKPointI> ApproxPolySimple(ReadOnlySpan<SKPointI> polyline)
         {
             float epsilon = 0.1f;
@@ -481,18 +468,17 @@ namespace RapidOcrNet
             return ret.Slice(0, p);
         }
 
-        /**
- * Simplify contour using Douglas Peucker algorithm.
- * <p>
- * Implements David Douglas and Thomas Peucker,
- * "Algorithms for the reduction of the number of points required to
- * represent a digitized line or its caricature",
- * The Canadian Cartographer 10(2), 112–122 (1973)
- * @param  polyline  The vertices
- * @param  epsilon   Maximum allowed error
- * @return           A simplified copy
- * @see              approxPolySimple
- */
+        /// <summary>
+        /// Simplify contour using Douglas Peucker algorithm.
+        /// <para>
+        /// Implements David Douglas and Thomas Peucker, "Algorithms for the reduction of the number of points required to
+        /// represent a digitized line or its caricature",
+        /// The Canadian Cartographer 10(2), 112–122 (1973)
+        /// </para>
+        /// </summary>
+        /// <param name="polyline">The vertices.</param>
+        /// <param name="epsilon">Maximum allowed error.</param>
+        /// <returns>A simplified copy.</returns>
         public static ReadOnlySpan<SKPointI> ApproxPolyDP(ReadOnlySpan<SKPointI> polyline, float epsilon)
         {
             // https://en.wikipedia.org/wiki/Ramer–Douglas–Peucker_algorithm
