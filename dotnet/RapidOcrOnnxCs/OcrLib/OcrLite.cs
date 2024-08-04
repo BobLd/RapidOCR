@@ -10,13 +10,13 @@ namespace OcrLiteLib
     {
         public bool isPartImg { get; set; }
         public bool isDebugImg { get; set; }
-        private readonly DbNet2 dbNet;
+        private readonly DbNet dbNet;
         private readonly AngleNet angleNet;
         private readonly CrnnNet crnnNet;
 
         public OcrLite()
         {
-            dbNet = new DbNet2();
+            dbNet = new DbNet();
             angleNet = new AngleNet();
             crnnNet = new CrnnNet();
         }
