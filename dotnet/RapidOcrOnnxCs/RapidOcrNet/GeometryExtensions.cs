@@ -3,7 +3,7 @@ using SkiaSharp;
 
 namespace RapidOcrNet
 {
-    public static class GeometryExtensions
+    internal static class GeometryExtensions
     {
         /// <summary>
         /// Return true if the points are in counter-clockwise order.

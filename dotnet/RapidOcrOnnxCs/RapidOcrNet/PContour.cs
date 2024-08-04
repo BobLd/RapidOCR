@@ -194,7 +194,7 @@ namespace RapidOcrNet
         /// <param name="w">Width of the bitmap.</param>
         /// <param name="h">Height of the bitmap.</param>
         /// <returns>An array of contours found in the image.</returns>
-        public static List<Contour> FindContours(Span<int> F, int w, int h)
+        public static IReadOnlyList<Contour> FindContours(Span<int> F, int w, int h)
         {
             // Topological Structural Analysis of Digitized Binary Images by Border Following.
             // Suzuki, S. and Abe, K., CVGIP 30 1, pp 32-46 (1985)
@@ -290,7 +290,7 @@ namespace RapidOcrNet
                     //                                               of the border B'
                     // ----------------------------------------------------------------
 
-                    Contour B = new Contour
+                    var B = new Contour
                     {
                         isHole = j2 == j + 1,
                         id = nbd,
@@ -302,7 +302,7 @@ namespace RapidOcrNet
 
                     contours.Add(B);
 
-                    Contour B0 = new Contour();
+                    var B0 = new Contour();
                     foreach (var c in contours)
                     {
                         if (c.id == lnbd)

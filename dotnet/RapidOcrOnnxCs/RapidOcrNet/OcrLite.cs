@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using SkiaSharp;
 
 namespace RapidOcrNet
@@ -69,11 +70,11 @@ namespace RapidOcrNet
             float boxThresh, float unClipRatio, bool doAngle, bool mostAngle)
         {
             System.Diagnostics.Debug.WriteLine("=====Start detect=====");
-            var startTicks = DateTime.Now.Ticks;
+            var sw = Stopwatch.StartNew();
 
             System.Diagnostics.Debug.WriteLine("---------- step: dbNet getTextBoxes ----------");
             var textBoxes = _dbNet.GetTextBoxes(src, scale, boxScoreThresh, boxThresh, unClipRatio);
-            var dbNetTime = (DateTime.Now.Ticks - startTicks) / 10000F;
+            var dbNetTime = sw.ElapsedMilliseconds;
 
             System.Diagnostics.Debug.WriteLine($"TextBoxesSize({textBoxes.Count})");
             textBoxes.ForEach(x => System.Diagnostics.Debug.WriteLine(x));
@@ -96,6 +97,11 @@ namespace RapidOcrNet
             System.Diagnostics.Debug.WriteLine("---------- step: crnnNet getTextLines ----------");
             List<TextLine> textLines = _crnnNet.GetTextLines(partImages);
 
+            foreach (var bmp in partImages)
+            {
+                bmp.Dispose();
+            }
+
             List<TextBlock> textBlocks = new List<TextBlock>();
             for (int i = 0; i < textLines.Count; ++i)
             {
@@ -114,22 +120,15 @@ namespace RapidOcrNet
                 textBlocks.Add(textBlock);
             }
 
-            var endTicks = DateTime.Now.Ticks;
-            var fullDetectTime = (endTicks - startTicks) / 10000F;
+            var fullDetectTime = sw.ElapsedMilliseconds;
 
             StringBuilder strRes = new StringBuilder();
             textBlocks.ForEach(x => strRes.AppendLine(x.Text));
-
-            foreach (var bmp in partImages)
-            {
-                bmp.Dispose();
-            }
 
             return new OcrResult
             {
                 TextBlocks = textBlocks,
                 DbNetTime = dbNetTime,
-                //ocrResult.BoxImg = boxImg;
                 DetectTime = fullDetectTime,
                 StrRes = strRes.ToString()
             };

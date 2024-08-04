@@ -75,10 +75,10 @@ namespace OcrLiteLib
             return null;
         }
 
-        private static SKPointI[][] FindContours(ReadOnlySpan<byte> array, int rows, int cols)
+        private static SKPointI[][] FindContours(byte[] array, int rows, int cols)
         {
-            var v = array.ToArray().Select(b => b / byte.MaxValue).ToArray();
-            var contours = PContour.FindContours(v.AsSpan(), cols, rows);
+            Span<int> v = Array.ConvertAll(array, c => (int)c);
+            var contours = PContour.FindContours(v, cols, rows);
             return contours.Select(c => PContour.ApproxPolyDP(c.GetSpan(), 1).ToArray()).ToArray();
         }
 
@@ -114,10 +114,13 @@ namespace OcrLiteLib
             var crop = new SKRectI(0, 0, cols, rows);
 
             Span<byte> rawPixels = new byte[predData.Length];
+            Span<byte> predDataBytes = new byte[predData.Length];
+
             for (int i = 0; i < predData.Length; i++)
             {
-                // Thresholding
-                rawPixels[i] = predData[i] > boxThresh ? byte.MaxValue : byte.MinValue;
+                var f = predData[i];
+                predDataBytes[i] = Convert.ToByte(f * 255);
+                rawPixels[i] = f > boxThresh ? (byte)1 : (byte)0; // Thresholding
             }
 
             const int dilateRadius = 2;
@@ -144,7 +147,7 @@ namespace OcrLiteLib
                 }
             }
 
-            using (SKImage predMatImage = SKImage.FromPixelCopy(gray8, predData.Select(b => Convert.ToByte(b * 255)).ToArray()))
+            using (SKImage predMatImage = SKImage.FromPixelCopy(gray8, predDataBytes))
             {
                 for (int i = 0; i < contours.Length; i++)
                 {

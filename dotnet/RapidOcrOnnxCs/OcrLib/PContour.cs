@@ -29,12 +29,13 @@ using SkiaSharp;
 
 namespace PContourNet
 {
-    public static class PContour
+    internal static class PContour
     {
         private const int N_PIXEL_NEIGHBOR = 8;
 
-        // give pixel neighborhood counter-clockwise ID's for
-        // easier access with findContour algorithm
+        /// <summary>
+        /// Give pixel neighborhood counter-clockwise ID's for easier access with findContour algorithm.
+        /// </summary>
         private static int[] NeighborIdToIndex(int i, int j, int id)
         {
             switch (id)
@@ -107,7 +108,9 @@ namespace PContourNet
             return -1;
         }
 
-        // first counter clockwise non-zero element in neighborhood
+        /// <summary>
+        /// First counter clockwise non-zero element in neighborhood.
+        /// </summary>
         private static int[] ccwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
@@ -124,7 +127,9 @@ namespace PContourNet
             return null;
         }
 
-        // first clockwise non-zero element in neighborhood
+        /// <summary>
+        /// First clockwise non-zero element in neighborhood.
+        /// </summary>
         private static int[] cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
@@ -141,48 +146,60 @@ namespace PContourNet
             return null;
         }
 
-        /** Data structure for a contour,
-  * encodes vertices as well as hierarchical relationship to other contours
-  */
+        /// <summary>
+        /// Data structure for a contour, encodes vertices as well as hierarchical relationship to other contours.
+        /// </summary>
         public sealed class Contour
         {
-            /** Vertices */
-            public List<SKPointI> points;
+            /// <summary>
+            /// Vertices.
+            /// </summary>
+            internal List<SKPointI> points;
 
-            /** Unique ID, starts from 2 */
+            /// <summary>
+            /// Unique ID, starts from 2.
+            /// </summary>
             public int id;
 
-            /** ID of parent contour, 0 means top-level contour */
+            /// <summary>
+            /// ID of parent contour, 0 means top-level contour.
+            /// </summary>
             public int parent;
 
-            /** Is this contour a hole (as opposed to outline) */
+            /// <summary>
+            /// Is this contour a hole (as opposed to outline).
+            /// </summary>
             public bool isHole;
 
+            /// <summary>
+            /// Vertices.
+            /// </summary>
             public Span<SKPointI> GetSpan()
             {
-                //ArgumentNullException.ThrowIfNull(points, nameof(points));
+                if (points is null)
+                {
+                    throw new ArgumentNullException(nameof(points));
+                }
 
                 return points.ToArray();
             }
         }
 
-        /**
- * Find contours in a binary image
- * <p>
- * Implements Suzuki, S. and Abe, K.
- * Topological Structural Analysis of Digitized Binary Images by Border Following.
- * <p>
- * See source code for step-by-step correspondence to the paper's algorithm
- * description.
- * @param  F    The bitmap, stored in 1-dimensional row-major form.
- *              0=background, 1=foreground, will be modified by the function
- *              to hold semantic information
- * @param  w    Width of the bitmap
- * @param  h    Height of the bitmap
- * @return      An array of contours found in the image.
- * @see         Contour
- */
-        public static List<Contour> FindContours(Span<int> F, int w, int h)
+        /// <summary>
+        /// Find contours in a binary image.
+        /// <para>
+        /// Implements Suzuki, S. and Abe, K.
+        /// Topological Structural Analysis of Digitized Binary Images by Border Following.
+        /// </para>
+        /// See source code for step-by-step correspondence to the paper's algorithm description.
+        /// </summary>
+        /// <param name="F">The bitmap, stored in 1-dimensional row-major form.
+        /// 0=background,
+        /// 1=foreground, will be modified by the function to hold semantic information.</param>
+        /// <param name="w">Width of the bitmap.</param>
+        /// <param name="h">Height of the bitmap.</param>
+        /// <returns>An array of contours found in the image.</returns>
+        public static IReadOnlyList<Contour> FindContours(Span<int> F, int w, int h)
         {
             // Topological Structural Analysis of Digitized Binary Images by Border Following.
             // Suzuki, S. and Abe, K., CVGIP 30 1, pp 32-46 (1985)
@@ -278,56 +295,44 @@ namespace PContourNet
                     //                                               of the border B'
                     // ----------------------------------------------------------------
 
-                    Contour B = new Contour();
-                    B.points = new List<SKPointI>();
-                    B.points.Add(new SKPointI(j, i));
-                    B.isHole = (j2 == j + 1);
-                    B.id = nbd;
+                    var B = new Contour
+                    {
+                        isHole = j2 == j + 1,
+                        id = nbd,
+                        points = new List<SKPointI>() { new SKPointI(j, i) }
+                    };
+
                     contours.Add(B);
 
-                    Contour B0 = new Contour();
-                    for (int c = 0; c < contours.Count; c++)
+                    var B0 = new Contour();
+                    foreach (var c in contours)
                     {
-                        if (contours[c].id == lnbd)
+                        if (c.id == lnbd)
                         {
-                            B0 = contours[c];
+                            B0 = c;
                             break;
                         }
                     }
 
                     if (B0.isHole)
                     {
-                        if (B.isHole)
-                        {
-                            B.parent = B0.parent;
-                        }
-                        else
-                        {
-                            B.parent = lnbd;
-                        }
+                        B.parent = B.isHole ? B0.parent : lnbd;
                     }
                     else
                     {
-                        if (B.isHole)
-                        {
-                            B.parent = lnbd;
-                        }
-                        else
-                        {
-                            B.parent = B0.parent;
-                        }
+                        B.parent = B.isHole ? lnbd : B0.parent;
                     }
 
-                    //(3) From the starting point (i, j), follow the detected border: 
-                    //this is done by the following substeps (3.1) through (3.5).
+                    // (3) From the starting point (i, j), follow the detected border: 
+                    // this is done by the following substeps (3.1) through (3.5).
 
-                    //(3.1) Starting from (i2, j2), look around clockwise the pixels 
-                    //in the neigh- borhood of (i, j) and tind a nonzero pixel. 
-                    //Let (i1, j1) be the first found nonzero pixel. If no nonzero 
-                    //pixel is found, assign -NBD to fij and go to (4).
+                    // (3.1) Starting from (i2, j2), look around clockwise the pixels 
+                    // in the neighborhood of (i, j) and tind a nonzero pixel. 
+                    // Let (i1, j1) be the first found nonzero pixel. If no nonzero 
+                    // pixel is found, assign -NBD to fij and go to (4).
                     int i1 = -1, j1 = -1;
                     int[] i1j1 = cwNon0(F, w, h, i, j, i2, j2, 0);
-                    if (i1j1 == null)
+                    if (i1j1 is null)
                     {
                         F[i * w + j] = -nbd;
                         //go to (4)
@@ -350,8 +355,8 @@ namespace PContourNet
 
                     while (true)
                     {
-                        //(3.3) Starting from the next elementof the pixel (i2, j2) 
-                        //in the counterclock- wise order, examine counterclockwise 
+                        //(3.3) Starting from the next element of the pixel (i2, j2) 
+                        //in the counterclockwise order, examine counterclockwise 
                         //the pixels in the neighborhood of the current pixel (i3, j3) 
                         //to find a nonzero pixel and let the first one be (i4, j4).
 
@@ -451,13 +456,11 @@ namespace PContourNet
             return (float)Math.Sqrt(dx * dx + dy * dy);
         }
 
-        /**
-         * Simplify contour by removing definately extraneous vertices,
-         * without modifying shape of the contour.
-         * @param  polyline  The vertices
-         * @return           A simplified copy
-         * @see              approxPolyDP
-         */
+        /// <summary>
+        /// Simplify contour by removing definitely extraneous vertices, without modifying shape of the contour.
+        /// </summary>
+        /// <param name="polyline">The vertices.</param>
+        /// <returns>A simplified copy.</returns>
         public static ReadOnlySpan<SKPointI> ApproxPolySimple(ReadOnlySpan<SKPointI> polyline)
         {
             float epsilon = 0.1f;
@@ -475,26 +478,25 @@ namespace PContourNet
                 float d = PointDistanceToSegment(polyline[i], polyline[i - 1], polyline[i + 1]);
                 if (d > epsilon)
                 {
-                    ret[p++] = polyline[i]; // ret.Add(new Point(polyline[i]));
+                    ret[p++] = polyline[i];
                 }
             }
 
-            ret[p++] = polyline[polyline.Length - 1]; //ret.Add(new Point(polyline[polyline.Length - 1]));
+            ret[p++] = polyline[polyline.Length - 1];
             return ret.Slice(0, p);
         }
 
-        /**
- * Simplify contour using Douglas Peucker algorithm.
- * <p>
- * Implements David Douglas and Thomas Peucker,
- * "Algorithms for the reduction of the number of points required to
- * represent a digitized line or its caricature",
- * The Canadian Cartographer 10(2), 112–122 (1973)
- * @param  polyline  The vertices
- * @param  epsilon   Maximum allowed error
- * @return           A simplified copy
- * @see              approxPolySimple
- */
+        /// <summary>
+        /// Simplify contour using Douglas Peucker algorithm.
+        /// <para>
+        /// Implements David Douglas and Thomas Peucker, "Algorithms for the reduction of the number of points required to
+        /// represent a digitized line or its caricature",
+        /// The Canadian Cartographer 10(2), 112–122 (1973)
+        /// </para>
+        /// </summary>
+        /// <param name="polyline">The vertices.</param>
+        /// <param name="epsilon">Maximum allowed error.</param>
+        /// <returns>A simplified copy.</returns>
         public static ReadOnlySpan<SKPointI> ApproxPolyDP(ReadOnlySpan<SKPointI> polyline, float epsilon)
         {
             // https://en.wikipedia.org/wiki/Ramer–Douglas–Peucker_algorithm
@@ -521,31 +523,25 @@ namespace PContourNet
             }
 
             int p = 0;
-            Span<SKPointI> ret = new SKPointI[polyline.Length]; // List<Point> ret = new List<Point>();
+            Span<SKPointI> ret = new SKPointI[polyline.Length];
             if (dmax > epsilon)
             {
-                //List<Point> L = ApproxPolyDP(new List<Point>(polyline.SubList(0, argmax + 1)), epsilon);
-                //List<Point> R = ApproxPolyDP(new List<Point>(polyline.SubList(argmax, polyline.Count)), epsilon);
                 ReadOnlySpan<SKPointI> L = ApproxPolyDP(polyline.SubList(0, argmax + 1), epsilon);
                 ReadOnlySpan<SKPointI> R = ApproxPolyDP(polyline.SubList(argmax, polyline.Length), epsilon);
                 foreach (var l in L.SubList(0, L.Length - 1))
                 {
                     ret[p++] = l;
                 }
-                //ret.AddRange(L.SubList(0, L.Count - 1));
 
                 foreach (var r in R)
                 {
                     ret[p++] = r;
                 }
-                //ret.AddRange(R);
             }
             else
             {
                 ret[p++] = polyline[0];
                 ret[p++] = polyline[polyline.Length - 1];
-                //ret.Add(new Point(polyline[0]));
-                //ret.Add(new Point(polyline[polyline.Length - 1]));
             }
 
             return ret.Slice(0, p);
