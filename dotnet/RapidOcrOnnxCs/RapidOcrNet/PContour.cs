@@ -34,28 +34,44 @@ namespace RapidOcrNet
         /// <summary>
         /// Give pixel neighborhood counter-clockwise ID's for easier access with findContour algorithm.
         /// </summary>
-        private static int[] NeighborIdToIndex(int i, int j, int id)
+        private static void NeighborIdToIndex(int i, int j, int id, out int x, out int y)
         {
             switch (id)
             {
                 case 0:
-                    return new int[] { i, j + 1 };
+                    x = i;
+                    y = j + 1;
+                    return;
                 case 1:
-                    return new int[] { i - 1, j + 1 };
+                    x = i - 1;
+                    y = j + 1;
+                    return;
                 case 2:
-                    return new int[] { i - 1, j };
+                    x = i - 1;
+                    y = j;
+                    return;
                 case 3:
-                    return new int[] { i - 1, j - 1 };
+                    x = i - 1;
+                    y = j - 1;
+                    return;
                 case 4:
-                    return new int[] { i, j - 1 };
+                    x = i;
+                    y = j - 1;
+                    return;
                 case 5:
-                    return new int[] { i + 1, j - 1 };
+                    x = i + 1;
+                    y = j - 1;
+                    return;
                 case 6:
-                    return new int[] { i + 1, j };
+                    x = i + 1;
+                    y = j;
+                    return;
                 case 7:
-                    return new int[] { i + 1, j + 1 };
+                    x = i + 1;
+                    y = j + 1;
+                    return;
                 default:
-                    return null;
+                    throw new ArgumentOutOfRangeException($"Could not find position for id '{id}'. Value should be between 0 and 7 inclusive.", nameof(id));
             }
         }
 
@@ -109,39 +125,48 @@ namespace RapidOcrNet
         /// <summary>
         /// First counter clockwise non-zero element in neighborhood.
         /// </summary>
-        private static int[] ccwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
+        private static bool ccwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset, out int x, out int y)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
             for (int k = 0; k < N_PIXEL_NEIGHBOR; k++)
             {
                 int kk = (k + id + offset + N_PIXEL_NEIGHBOR * 2) % N_PIXEL_NEIGHBOR;
-                int[] ij = NeighborIdToIndex(i0, j0, kk);
-                if (F[ij[0] * w + ij[1]] != 0)
+
+                NeighborIdToIndex(i0, j0, kk, out int i1, out int j1);
+                if (F[i1 * w + j1] != 0)
                 {
-                    return ij;
+                    x = i1;
+                    y = j1;
+                    return true;
                 }
             }
 
-            return null;
+            x = -1;
+            y = -1;
+            return false;
         }
 
         /// <summary>
         /// First clockwise non-zero element in neighborhood.
         /// </summary>
-        private static int[]? cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
+        private static bool cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset, out int x, out int y)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
             for (int k = 0; k < N_PIXEL_NEIGHBOR; k++)
             {
                 int kk = (-k + id - offset + N_PIXEL_NEIGHBOR * 2) % N_PIXEL_NEIGHBOR;
-                int[] ij = NeighborIdToIndex(i0, j0, kk);
-                if (F[ij[0] * w + ij[1]] != 0)
+                NeighborIdToIndex(i0, j0, kk, out int i1, out int j1);
+                if (F[i1 * w + j1] != 0)
                 {
-                    return ij;
+                    x = i1;
+                    y = j1;
+                    return true;
                 }
             }
 
-            return null;
+            x = -1;
+            y = -1;
+            return false;
         }
 
         /// <summary>
@@ -217,9 +242,9 @@ namespace RapidOcrNet
                 F[w * h - 1 - i] = 0;
             }
 
-            //Scan the picture with a TV raster and perform the following steps 
-            //for each pixel such that fij # 0. Every time we begin to scan a 
-            //new row of the picture, reset LNBD to 1.
+            // Scan the picture with a TV raster and perform the following steps 
+            // for each pixel such that fij # 0. Every time we begin to scan a 
+            // new row of the picture, reset LNBD to 1.
             for (int i = 1; i < h - 1; i++)
             {
                 lnbd = 1;
@@ -233,19 +258,19 @@ namespace RapidOcrNet
                         continue;
                     }
 
-                    //(a) If fij = 1 and fi, j-1 = 0, then decide that the pixel 
-                    //(i, j) is the border following starting point of an outer 
-                    //border, increment NBD, and (i2, j2) <- (i, j - 1).
+                    // (a) If fij = 1 and fi, j-1 = 0, then decide that the pixel 
+                    // (i, j) is the border following starting point of an outer 
+                    // border, increment NBD, and (i2, j2) <- (i, j - 1).
                     if (F[i * w + j] == 1 && F[i * w + (j - 1)] == 0)
                     {
                         nbd++;
                         i2 = i;
                         j2 = j - 1;
 
-                        //(b) Else if fij >= 1 and fi,j+1 = 0, then decide that the 
-                        //pixel (i, j) is the border following starting point of a 
-                        //hole border, increment NBD, (i2, j2) <- (i, j + 1), and 
-                        //LNBD + fij in case fij > 1.  
+                        // (b) Else if fij >= 1 and fi,j+1 = 0, then decide that the 
+                        // pixel (i, j) is the border following starting point of a 
+                        // hole border, increment NBD, (i2, j2) <- (i, j + 1), and 
+                        // LNBD + fij in case fij > 1.  
                     }
                     else if (F[i * w + j] >= 1 && F[i * w + j + 1] == 0)
                     {
@@ -259,10 +284,10 @@ namespace RapidOcrNet
                     }
                     else
                     {
-                        //(c) Otherwise, go to (4).
-                        //(4) If fij != 1, then LNBD <- |fij| and resume the raster
-                        //scan from pixel (i,j+1). The algorithm terminates when the
-                        //scan reaches the lower right corner of the picture
+                        // (c) Otherwise, go to (4).
+                        // (4) If fij != 1, then LNBD <- |fij| and resume the raster
+                        // scan from pixel (i,j+1). The algorithm terminates when the
+                        // scan reaches the lower right corner of the picture
                         if (F[i * w + j] != 1)
                         {
                             lnbd = Math.Abs(F[i * w + j]);
@@ -271,10 +296,10 @@ namespace RapidOcrNet
                         continue;
                     }
 
-                    //(2) Depending on the types of the newly found border 
-                    //and the border with the sequential number LNBD 
-                    //(i.e., the last border met on the current row), 
-                    //decide the parent of the current border as shown in Table 1.
+                    // (2) Depending on the types of the newly found border 
+                    // and the border with the sequential number LNBD 
+                    // (i.e., the last border met on the current row), 
+                    // decide the parent of the current border as shown in Table 1.
                     // TABLE 1
                     // Decision Rule for the Parent Border of the Newly Found Border B
                     // ----------------------------------------------------------------
@@ -328,9 +353,8 @@ namespace RapidOcrNet
                     // in the neighborhood of (i, j) and tind a nonzero pixel. 
                     // Let (i1, j1) be the first found nonzero pixel. If no nonzero 
                     // pixel is found, assign -NBD to fij and go to (4).
-                    int i1 = -1, j1 = -1;
-                    int[]? i1j1 = cwNon0(F, w, h, i, j, i2, j2, 0);
-                    if (i1j1 is null)
+
+                    if (!cwNon0(F, w, h, i, j, i2, j2, 0, out int i1, out int j1))
                     {
                         F[i * w + j] = -nbd;
                         //go to (4)
@@ -342,9 +366,6 @@ namespace RapidOcrNet
                         continue;
                     }
 
-                    i1 = i1j1[0];
-                    j1 = i1j1[1];
-
                     // (3.2) (i2, j2) <- (i1, j1) ad (i3,j3) <- (i, j).
                     i2 = i1;
                     j2 = j1;
@@ -353,25 +374,26 @@ namespace RapidOcrNet
 
                     while (true)
                     {
-                        //(3.3) Starting from the next element of the pixel (i2, j2) 
-                        //in the counterclockwise order, examine counterclockwise 
-                        //the pixels in the neighborhood of the current pixel (i3, j3) 
-                        //to find a nonzero pixel and let the first one be (i4, j4).
+                        // (3.3) Starting from the next element of the pixel (i2, j2) 
+                        // in the counterclockwise order, examine counterclockwise 
+                        // the pixels in the neighborhood of the current pixel (i3, j3) 
+                        // to find a nonzero pixel and let the first one be (i4, j4).
 
-                        int[] i4j4 = ccwNon0(F, w, h, i3, j3, i2, j2, 1);
-                        int i4 = i4j4[0];
-                        int j4 = i4j4[1];
+                        if (!ccwNon0(F, w, h, i3, j3, i2, j2, 1, out int i4, out int j4))
+                        {
+                            throw new Exception("Could not find first counter clockwise non-zero element in neighborhood.");
+                        }
 
                         contours[contours.Count - 1].points.Add(new SKPointI(j4, i4));
 
-                        //(a) If the pixel (i3, j3 + 1) is a O-pixel examined in the
-                        //substep (3.3) then fi3, j3 <-  -NBD.
+                        // (a) If the pixel (i3, j3 + 1) is a O-pixel examined in the
+                        // substep (3.3) then fi3, j3 <-  -NBD.
                         if (F[i3 * w + j3 + 1] == 0)
                         {
                             F[i3 * w + j3] = -nbd;
 
-                            //(b) If the pixel (i3, j3 + 1) is not a O-pixel examined 
-                            //in the substep (3.3) and fi3,j3 = 1, then fi3,j3 <- NBD.
+                            // (b) If the pixel (i3, j3 + 1) is not a O-pixel examined 
+                            // in the substep (3.3) and fi3,j3 = 1, then fi3,j3 <- NBD.
                         }
                         else if (F[i3 * w + j3] == 1)
                         {
@@ -379,11 +401,11 @@ namespace RapidOcrNet
                         }
                         else
                         {
-                            //(c) Otherwise, do not change fi3, j3.
+                            // (c) Otherwise, do not change fi3, j3.
                         }
 
-                        //(3.5) If (i4, j4) = (i, j) and (i3, j3) = (i1, j1) 
-                        //(coming back to the starting point), then go to (4);
+                        // (3.5) If (i4, j4) = (i, j) and (i3, j3) = (i1, j1) 
+                        // (coming back to the starting point), then go to (4);
                         if (i4 == i && j4 == j && i3 == i1 && j3 == j1)
                         {
                             if (F[i * w + j] != 1)
@@ -393,8 +415,8 @@ namespace RapidOcrNet
 
                             break;
 
-                            //otherwise, (i2, j2) + (i3, j3),(i3, j3) + (i4, j4), 
-                            //and go back to (3.3).
+                            // otherwise, (i2, j2) + (i3, j3),(i3, j3) + (i4, j4), 
+                            // and go back to (3.3).
                         }
                         else
                         {

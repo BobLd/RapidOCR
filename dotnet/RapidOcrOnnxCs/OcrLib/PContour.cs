@@ -36,28 +36,44 @@ namespace PContourNet
         /// <summary>
         /// Give pixel neighborhood counter-clockwise ID's for easier access with findContour algorithm.
         /// </summary>
-        private static int[] NeighborIdToIndex(int i, int j, int id)
+        private static void NeighborIdToIndex(int i, int j, int id, out int x, out int y)
         {
             switch (id)
             {
                 case 0:
-                    return new int[] { i, j + 1 };
+                    x = i;
+                    y = j + 1;
+                    return;
                 case 1:
-                    return new int[] { i - 1, j + 1 };
+                    x = i - 1;
+                    y = j + 1;
+                    return;
                 case 2:
-                    return new int[] { i - 1, j };
+                    x = i - 1;
+                    y = j;
+                    return;
                 case 3:
-                    return new int[] { i - 1, j - 1 };
+                    x = i - 1;
+                    y = j - 1;
+                    return;
                 case 4:
-                    return new int[] { i, j - 1 };
+                    x = i;
+                    y = j - 1;
+                    return;
                 case 5:
-                    return new int[] { i + 1, j - 1 };
+                    x = i + 1;
+                    y = j - 1;
+                    return;
                 case 6:
-                    return new int[] { i + 1, j };
+                    x = i + 1;
+                    y = j;
+                    return;
                 case 7:
-                    return new int[] { i + 1, j + 1 };
+                    x = i + 1;
+                    y = j + 1;
+                    return;
                 default:
-                    return null;
+                    throw new ArgumentOutOfRangeException($"Could not find position for id '{id}'. Value should be between 0 and 7 inclusive.", nameof(id));
             }
         }
 
@@ -111,39 +127,48 @@ namespace PContourNet
         /// <summary>
         /// First counter clockwise non-zero element in neighborhood.
         /// </summary>
-        private static int[] ccwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
+        private static bool ccwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset, out int x, out int y)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
             for (int k = 0; k < N_PIXEL_NEIGHBOR; k++)
             {
                 int kk = (k + id + offset + N_PIXEL_NEIGHBOR * 2) % N_PIXEL_NEIGHBOR;
-                int[] ij = NeighborIdToIndex(i0, j0, kk);
-                if (F[ij[0] * w + ij[1]] != 0)
+
+                NeighborIdToIndex(i0, j0, kk, out int i1, out int j1);
+                if (F[i1 * w + j1] != 0)
                 {
-                    return ij;
+                    x = i1;
+                    y = j1;
+                    return true;
                 }
             }
 
-            return null;
+            x = -1;
+            y = -1;
+            return false;
         }
 
         /// <summary>
         /// First clockwise non-zero element in neighborhood.
         /// </summary>
-        private static int[] cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset)
+        private static bool cwNon0(ReadOnlySpan<int> F, int w, int h, int i0, int j0, int i, int j, int offset, out int x, out int y)
         {
             int id = NeighborIndexToId(i0, j0, i, j);
             for (int k = 0; k < N_PIXEL_NEIGHBOR; k++)
             {
                 int kk = (-k + id - offset + N_PIXEL_NEIGHBOR * 2) % N_PIXEL_NEIGHBOR;
-                int[] ij = NeighborIdToIndex(i0, j0, kk);
-                if (F[ij[0] * w + ij[1]] != 0)
+                NeighborIdToIndex(i0, j0, kk, out int i1, out int j1);
+                if (F[i1 * w + j1] != 0)
                 {
-                    return ij;
+                    x = i1;
+                    y = j1;
+                    return true;
                 }
             }
 
-            return null;
+            x = -1;
+            y = -1;
+            return false;
         }
 
         /// <summary>
@@ -330,9 +355,7 @@ namespace PContourNet
                     // in the neighborhood of (i, j) and tind a nonzero pixel. 
                     // Let (i1, j1) be the first found nonzero pixel. If no nonzero 
                     // pixel is found, assign -NBD to fij and go to (4).
-                    int i1 = -1, j1 = -1;
-                    int[] i1j1 = cwNon0(F, w, h, i, j, i2, j2, 0);
-                    if (i1j1 is null)
+                    if (!cwNon0(F, w, h, i, j, i2, j2, 0, out int i1, out int j1))
                     {
                         F[i * w + j] = -nbd;
                         //go to (4)
@@ -343,9 +366,6 @@ namespace PContourNet
 
                         continue;
                     }
-
-                    i1 = i1j1[0];
-                    j1 = i1j1[1];
 
                     // (3.2) (i2, j2) <- (i1, j1) ad (i3,j3) <- (i, j).
                     i2 = i1;
@@ -360,9 +380,10 @@ namespace PContourNet
                         //the pixels in the neighborhood of the current pixel (i3, j3) 
                         //to find a nonzero pixel and let the first one be (i4, j4).
 
-                        int[] i4j4 = ccwNon0(F, w, h, i3, j3, i2, j2, 1);
-                        int i4 = i4j4[0];
-                        int j4 = i4j4[1];
+                        if (!ccwNon0(F, w, h, i3, j3, i2, j2, 1, out int i4, out int j4))
+                        {
+                            throw new Exception();
+                        }
 
                         contours[contours.Count - 1].points.Add(new SKPointI(j4, i4));
 
