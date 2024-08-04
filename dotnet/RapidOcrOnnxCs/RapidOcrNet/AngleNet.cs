@@ -1,4 +1,5 @@
-﻿using Microsoft.ML.OnnxRuntime;
+﻿using System.Diagnostics;
+using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
 
@@ -6,23 +7,19 @@ namespace RapidOcrNet
 {
     internal sealed class AngleNet
     {
+        private const int AngleDstWidth = 192;
+        private const int AngleDstHeight = 48;
+        private const int AngleCols = 2;
+
         private readonly float[] MeanValues = [127.5F, 127.5F, 127.5F];
         private readonly float[] NormValues = [1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F];
 
-        private const int angleDstWidth = 192;
-        private const int angleDstHeight = 48;
-        private const int angleCols = 2;
-
-        private InferenceSession angleNet;
-        private List<string> inputNames;
-
-        public AngleNet()
-        {
-        }
+        private InferenceSession _angleNet;
+        private string _inputName; //private List<string> _inputNames;
 
         ~AngleNet()
         {
-            angleNet.Dispose();
+            _angleNet.Dispose();
         }
 
         public void InitModel(string path, int numThread)
@@ -35,8 +32,8 @@ namespace RapidOcrNet
                     InterOpNumThreads = numThread,
                     IntraOpNumThreads = numThread
                 };
-                angleNet = new InferenceSession(path, op);
-                inputNames = angleNet.InputMetadata.Keys.ToList();
+                _angleNet = new InferenceSession(path, op);
+                _inputName = _angleNet.InputMetadata.Keys.First(); //_inputNames = _angleNet.InputMetadata.Keys.ToList();
             }
             catch (Exception ex)
             {
@@ -50,12 +47,13 @@ namespace RapidOcrNet
             var angles = new List<Angle>();
             if (doAngle)
             {
+                var sw = new Stopwatch();
+
                 foreach (var bmp in partImgs)
                 {
-                    var startTicks = DateTime.Now.Ticks;
+                    sw.Restart();
                     var angle = GetAngle(bmp);
-                    var endTicks = DateTime.Now.Ticks;
-                    angle.Time = (endTicks - startTicks) / 10000F;
+                    angle.Time = sw.ElapsedMilliseconds;
                     angles.Add(angle);
                 }
             }
@@ -91,22 +89,22 @@ namespace RapidOcrNet
         private Angle GetAngle(SKBitmap src)
         {
             Tensor<float> inputTensors;
-            using (var angleImg = src.Resize(new SKSizeI(angleDstWidth, angleDstHeight), SKFilterQuality.High))
+            using (var angleImg = src.Resize(new SKSizeI(AngleDstWidth, AngleDstHeight), SKFilterQuality.High))
             {
                 inputTensors = OcrUtils.SubtractMeanNormalize(angleImg, MeanValues, NormValues);
             }
 
             var inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+                NamedOnnxValue.CreateFromTensor(_inputName, inputTensors)
             };
 
             try
             {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _angleNet.Run(inputs))
                 {
                     ReadOnlySpan<float> outputData = results[0].AsEnumerable<float>().ToArray();
-                    return ScoreToAngle(outputData, angleCols);
+                    return ScoreToAngle(outputData, AngleCols);
                 }
             }
             catch (Exception ex)

@@ -17,7 +17,7 @@ namespace RapidOcrNet
     public sealed class Angle
     {
         public int Index { get; set; }
-        public float Score { get; set; }
+        public float Score { get; init; }
         public float Time { get; set; }
 
         public override string ToString()
