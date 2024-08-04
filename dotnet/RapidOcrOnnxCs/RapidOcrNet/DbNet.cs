@@ -11,15 +11,12 @@ namespace RapidOcrNet
         private readonly float[] MeanValues = [0.485F * 255F, 0.456F * 255F, 0.406F * 255F];
         private readonly float[] NormValues = [1.0F / 0.229F / 255.0F, 1.0F / 0.224F / 255.0F, 1.0F / 0.225F / 255.0F];
 
-        private InferenceSession dbNet;
-
-        private List<string> inputNames;
-
-        public DbNet() { }
+        private InferenceSession _dbNet;
+        private string _inputName;
 
         ~DbNet()
         {
-            dbNet.Dispose();
+            _dbNet.Dispose();
         }
 
         public void InitModel(string path, int numThread)
@@ -33,8 +30,8 @@ namespace RapidOcrNet
                     IntraOpNumThreads = numThread
                 };
 
-                dbNet = new InferenceSession(path, op);
-                inputNames = dbNet.InputMetadata.Keys.ToList();
+                _dbNet = new InferenceSession(path, op);
+                _inputName = _dbNet.InputMetadata.Keys.First();
             }
             catch (Exception ex)
             {
@@ -52,14 +49,14 @@ namespace RapidOcrNet
                 inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
             }
 
-            var inputs = new List<NamedOnnxValue>
+            IReadOnlyCollection<NamedOnnxValue> inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+                NamedOnnxValue.CreateFromTensor(_inputName, inputTensors)
             };
 
             try
             {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = dbNet.Run(inputs))
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _dbNet.Run(inputs))
                 {
                     return GetTextBoxes(results[0], scale.DstHeight, scale.DstWidth, scale, boxScoreThresh,
                         boxThresh, unClipRatio);
@@ -152,7 +149,7 @@ namespace RapidOcrNet
                     }
 
                     float maxSide = 0;
-                    List<SKPoint> minBox = GetMiniBox(contours[i], out maxSide);
+                    SKPoint[] minBox = GetMiniBox(contours[i], out maxSide);
                     if (maxSide < maxSideThresh)
                     {
                         continue;
@@ -164,13 +161,13 @@ namespace RapidOcrNet
                         continue;
                     }
 
-                    List<SKPointI> clipBox = Unclip(minBox, unClipRatio);
+                    SKPointI[] clipBox = Unclip(minBox, unClipRatio);
                     if (clipBox == null)
                     {
                         continue;
                     }
 
-                    List<SKPoint> clipMinBox = GetMiniBox(clipBox, out maxSide);
+                    ReadOnlySpan<SKPoint> clipMinBox = GetMiniBox(clipBox, out maxSide);
                     if (maxSide < maxSideThresh + 2)
                     {
                         continue;
@@ -185,8 +182,7 @@ namespace RapidOcrNet
                         int y = (int)(item.Y / s.ScaleHeight);
                         int pty = Math.Min(Math.Max(y, 0), s.SrcHeight);
 
-                        SKPointI dstPt = new SKPointI(ptx, pty);
-                        finalPoints.Add(dstPt);
+                        finalPoints.Add(new SKPointI(ptx, pty));
                     }
 
                     var textBox = new TextBox
@@ -202,25 +198,17 @@ namespace RapidOcrNet
             return rsBoxes;
         }
 
-        private static List<SKPoint> GetMiniBox(List<SKPointI> contours, out float minEdgeSize)
+        private static SKPoint[] GetMiniBox(SKPointI[] contours, out float minEdgeSize)
         {
-            return GetMiniBox(contours.ToArray(), out minEdgeSize);
-        }
-
-        private static List<SKPoint> GetMiniBox(SKPointI[] contours, out float minEdgeSize)
-        {
-            List<SKPoint> box = new List<SKPoint>();
-
             SKPoint[] points = GeometryExtensions.MinimumAreaRectangle(contours);
 
             var size = GeometryExtensions.GetSize(points);
             minEdgeSize = MathF.Min(size.width, size.height);
 
-            List<SKPoint> thePoints = new List<SKPoint>(points);
-            thePoints.Sort(CompareByX);
-
+            Array.Sort(points, CompareByX);
+            
             int index_1 = 0, index_2 = 1, index_3 = 2, index_4 = 3;
-            if (thePoints[1].Y > thePoints[0].Y)
+            if (points[1].Y > points[0].Y)
             {
                 index_1 = 0;
                 index_4 = 1;
@@ -231,7 +219,7 @@ namespace RapidOcrNet
                 index_4 = 0;
             }
 
-            if (thePoints[3].Y > thePoints[2].Y)
+            if (points[3].Y > points[2].Y)
             {
                 index_2 = 2;
                 index_3 = 3;
@@ -242,12 +230,7 @@ namespace RapidOcrNet
                 index_3 = 2;
             }
 
-            box.Add(thePoints[index_1]);
-            box.Add(thePoints[index_2]);
-            box.Add(thePoints[index_3]);
-            box.Add(thePoints[index_4]);
-
-            return box;
+            return new SKPoint[] { points[index_1], points[index_2], points[index_3], points[index_4] };
         }
 
         public static int CompareByX(SKPoint left, SKPoint right)
@@ -388,10 +371,9 @@ namespace RapidOcrNet
             return 0;
         }
 
-        private static List<SKPointI> Unclip(List<SKPoint> box, float unclipRatio)
+        private static SKPointI[] Unclip(SKPoint[] box, float unclipRatio)
         {
-            var boxArr = box.ToArray();
-            SKPoint[] points = GeometryExtensionsF.MinimumAreaRectangle(boxArr);
+            SKPoint[] points = GeometryExtensionsF.MinimumAreaRectangle(box);
             var size = GeometryExtensions.GetSize(points);
 
             if (size.height < 1.001 && size.width < 1.001)
@@ -401,7 +383,7 @@ namespace RapidOcrNet
 
             var theClipperPts = new Path64(box.Select(pt => new Point64((int)pt.X, (int)pt.Y)));
 
-            float area = MathF.Abs(SignedPolygonArea(boxArr));
+            float area = MathF.Abs(SignedPolygonArea(box));
             double length = LengthOfPoints(box);
             double distance = area * unclipRatio / length;
 
@@ -414,10 +396,13 @@ namespace RapidOcrNet
                 return null;
             }
 
-            List<SKPointI> retPts = new List<SKPointI>();
-            foreach (var ip in solution[0])
+            var unclipped = solution[0];
+
+            var retPts = new SKPointI[unclipped.Count];
+            for (int i = 0; i < unclipped.Count; ++i)
             {
-                retPts.Add(new SKPointI((int)ip.X, (int)ip.Y));
+                var ip = unclipped[i];
+                retPts[i] = new SKPointI((int)ip.X, (int)ip.Y);
             }
 
             return retPts;
@@ -445,24 +430,21 @@ namespace RapidOcrNet
             return area;
         }
 
-        private static double LengthOfPoints(List<SKPoint> box)
+        private static double LengthOfPoints(SKPoint[] box)
         {
             double length = 0;
 
             SKPoint pt = box[0];
             double x0 = pt.X;
             double y0 = pt.Y;
-            double x1 = 0, y1 = 0, dx = 0, dy = 0;
-            box.Add(pt);
 
-            int count = box.Count;
-            for (int idx = 1; idx < count; idx++)
+            for (int idx = 1; idx < box.Length; idx++)
             {
                 SKPoint pts = box[idx];
-                x1 = pts.X;
-                y1 = pts.Y;
-                dx = x1 - x0;
-                dy = y1 - y0;
+                double x1 = pts.X;
+                double y1 = pts.Y;
+                double dx = x1 - x0;
+                double dy = y1 - y0;
 
                 length += Math.Sqrt(dx * dx + dy * dy);
 
@@ -470,7 +452,11 @@ namespace RapidOcrNet
                 y0 = y1;
             }
 
-            box.RemoveAt(count - 1);
+            // Compute distance from last point to first point (closed loop)
+            var dxL = pt.X - x0;
+            var dyL = pt.Y - y0;
+            length += Math.Sqrt(dxL * dxL + dyL * dyL);
+
             return length;
         }
     }
