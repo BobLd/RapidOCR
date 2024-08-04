@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
@@ -7,54 +8,55 @@ using SkiaSharp;
 
 namespace OcrLiteLib
 {
-    public sealed class AngleNet
+    internal sealed class AngleNet
     {
-        private readonly float[] MeanValues = { 127.5F, 127.5F, 127.5F };
-        private readonly float[] NormValues = { 1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F };
-        private const int angleDstWidth = 192;
-        private const int angleDstHeight = 48;
-        private const int angleCols = 2;
-        private InferenceSession angleNet;
-        private List<string> inputNames;
+        private const int AngleDstWidth = 192;
+        private const int AngleDstHeight = 48;
+        private const int AngleCols = 2;
 
-        public AngleNet()
-        {
-        }
+        private readonly float[] MeanValues = new float[] { 127.5F, 127.5F, 127.5F };
+        private readonly float[] NormValues = new float[] { 1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F };
+
+        private InferenceSession _angleNet;
+        private string _inputName; //private List<string> _inputNames;
 
         ~AngleNet()
         {
-            angleNet.Dispose();
+            _angleNet.Dispose();
         }
 
         public void InitModel(string path, int numThread)
         {
             try
             {
-                SessionOptions op = new SessionOptions();
-                op.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED;
-                op.InterOpNumThreads = numThread;
-                op.IntraOpNumThreads = numThread;
-                angleNet = new InferenceSession(path, op);
-                inputNames = angleNet.InputMetadata.Keys.ToList();
+                var op = new SessionOptions
+                {
+                    GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
+                    InterOpNumThreads = numThread,
+                    IntraOpNumThreads = numThread
+                };
+                _angleNet = new InferenceSession(path, op);
+                _inputName = _angleNet.InputMetadata.Keys.First(); //_inputNames = _angleNet.InputMetadata.Keys.ToList();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                throw ex;
+                throw;
             }
         }
 
         public List<Angle> GetAngles(IReadOnlyList<SKBitmap> partImgs, bool doAngle, bool mostAngle)
         {
-            List<Angle> angles = new List<Angle>();
+            var angles = new List<Angle>();
             if (doAngle)
             {
-                for (int i = 0; i < partImgs.Count; i++)
+                var sw = new Stopwatch();
+
+                foreach (var bmp in partImgs)
                 {
-                    var startTicks = DateTime.Now.Ticks;
-                    var angle = GetAngle(partImgs[i]);
-                    var endTicks = DateTime.Now.Ticks;
-                    angle.Time = (endTicks - startTicks) / 10000F;
+                    sw.Restart();
+                    var angle = GetAngle(bmp);
+                    angle.Time = sw.ElapsedMilliseconds;
                     angles.Add(angle);
                 }
             }
@@ -62,29 +64,25 @@ namespace OcrLiteLib
             {
                 for (int i = 0; i < partImgs.Count; i++)
                 {
-                    var angle = new Angle
+                    angles.Add(new Angle
                     {
                         Index = -1,
                         Score = 0F
-                    };
-                    angles.Add(angle);
+                    });
                 }
             }
 
             // Most Possible AngleIndex
             if (doAngle && mostAngle)
             {
-                List<int> angleIndexes = new List<int>();
-                angles.ForEach(x => angleIndexes.Add(x.Index));
-
-                double sum = angleIndexes.Sum();
+                double sum = angles.Sum(x => x.Index);
                 double halfPercent = angles.Count / 2.0f;
-                // All angles set to 0 or 1
-                int mostAngleIndex = sum < halfPercent ? 0 : 1;
+
+                int mostAngleIndex = sum < halfPercent ? 0 : 1; // All angles set to 0 or 1
                 System.Diagnostics.Debug.WriteLine($"Set All Angle to mostAngleIndex({mostAngleIndex})");
-                for (int i = 0; i < angles.Count; ++i)
+                foreach (var angle in angles)
                 {
-                    angles[i].Index = mostAngleIndex;
+                    angle.Index = mostAngleIndex;
                 }
             }
 
@@ -94,24 +92,22 @@ namespace OcrLiteLib
         private Angle GetAngle(SKBitmap src)
         {
             Tensor<float> inputTensors;
-            using (var angleImg = src.Resize(new SKSizeI(angleDstWidth, angleDstHeight), SKFilterQuality.High))
+            using (var angleImg = src.Resize(new SKSizeI(AngleDstWidth, AngleDstHeight), SKFilterQuality.High))
             {
                 inputTensors = OcrUtils.SubtractMeanNormalize(angleImg, MeanValues, NormValues);
             }
 
-            var inputs = new List<NamedOnnxValue>
+            IReadOnlyCollection<NamedOnnxValue> inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor(inputNames[0], inputTensors)
+                NamedOnnxValue.CreateFromTensor(_inputName, inputTensors)
             };
 
             try
             {
-                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = angleNet.Run(inputs))
+                using (IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _angleNet.Run(inputs))
                 {
-                    var resultsArray = results.ToArray();
-                    System.Diagnostics.Debug.WriteLine(resultsArray);
-                    float[] outputData = resultsArray[0].AsEnumerable<float>().ToArray();
-                    return ScoreToAngle(outputData, angleCols);
+                    ReadOnlySpan<float> outputData = results.First().AsEnumerable<float>().ToArray();
+                    return ScoreToAngle(outputData, AngleCols);
                 }
             }
             catch (Exception ex)
@@ -123,11 +119,11 @@ namespace OcrLiteLib
             return new Angle();
         }
 
-        private static Angle ScoreToAngle(float[] srcData, int angleCols)
+        private static Angle ScoreToAngle(ReadOnlySpan<float> srcData, int angleColumns)
         {
             int angleIndex = 0;
             float maxValue = -1000.0F;
-            for (int i = 0; i < angleCols; i++)
+            for (int i = 0; i < angleColumns; i++)
             {
                 if (i == 0) maxValue = srcData[i];
                 else if (srcData[i] > maxValue)
