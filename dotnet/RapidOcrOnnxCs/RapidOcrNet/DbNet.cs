@@ -77,7 +77,7 @@ namespace RapidOcrNet
         {
             var v = array.ToArray().Select(b => b / byte.MaxValue).ToArray();
             var contours = PContour.FindContours(v.AsSpan(), cols, rows);
-            return contours.Select(c => PContour.ApproxPolyDP(c.points.ToArray(), 1).ToArray()).ToArray();
+            return contours.Select(c => PContour.ApproxPolyDP(c.GetSpan(), 1).ToArray()).ToArray();
         }
 
         private static bool TryFindIndex(Dictionary<int, int> link, int offset, out int index)

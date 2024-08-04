@@ -149,18 +149,29 @@ namespace RapidOcrNet
         /// </summary>
         public sealed class Contour
         {
-            /** Vertices */
-            public List<SKPointI> points;
+            /// <summary>
+            /// Vertices.
+            /// </summary>
+            internal List<SKPointI> points;
 
-            /** Unique ID, starts from 2 */
+            /// <summary>
+            /// Unique ID, starts from 2.
+            /// </summary>
             public int id;
 
-            /** ID of parent contour, 0 means top-level contour */
+            /// <summary>
+            /// ID of parent contour, 0 means top-level contour.
+            /// </summary>
             public int parent;
 
-            /** Is this contour a hole (as opposed to outline) */
+            /// <summary>
+            /// Is this contour a hole (as opposed to outline).
+            /// </summary>
             public bool isHole;
 
+            /// <summary>
+            /// Vertices.
+            /// </summary>
             public Span<SKPointI> GetSpan()
             {
                 ArgumentNullException.ThrowIfNull(points, nameof(points));
@@ -279,19 +290,24 @@ namespace RapidOcrNet
                     //                                               of the border B'
                     // ----------------------------------------------------------------
 
-                    Contour B = new Contour();
-                    B.points = new List<SKPointI>();
-                    B.points.Add(new SKPointI(j, i));
-                    B.isHole = j2 == j + 1;
-                    B.id = nbd;
+                    Contour B = new Contour
+                    {
+                        isHole = j2 == j + 1,
+                        id = nbd,
+                        points =
+                        [
+                            new SKPointI(j, i)
+                        ]
+                    };
+
                     contours.Add(B);
 
                     Contour B0 = new Contour();
-                    for (int c = 0; c < contours.Count; c++)
+                    foreach (var c in contours)
                     {
-                        if (contours[c].id == lnbd)
+                        if (c.id == lnbd)
                         {
-                            B0 = contours[c];
+                            B0 = c;
                             break;
                         }
                     }
@@ -305,13 +321,13 @@ namespace RapidOcrNet
                         B.parent = B.isHole ? lnbd : B0.parent;
                     }
 
-                    //(3) From the starting point (i, j), follow the detected border: 
-                    //this is done by the following substeps (3.1) through (3.5).
+                    // (3) From the starting point (i, j), follow the detected border: 
+                    // this is done by the following substeps (3.1) through (3.5).
 
-                    //(3.1) Starting from (i2, j2), look around clockwise the pixels 
-                    //in the neigh- borhood of (i, j) and tind a nonzero pixel. 
-                    //Let (i1, j1) be the first found nonzero pixel. If no nonzero 
-                    //pixel is found, assign -NBD to fij and go to (4).
+                    // (3.1) Starting from (i2, j2), look around clockwise the pixels 
+                    // in the neighborhood of (i, j) and tind a nonzero pixel. 
+                    // Let (i1, j1) be the first found nonzero pixel. If no nonzero 
+                    // pixel is found, assign -NBD to fij and go to (4).
                     int i1 = -1, j1 = -1;
                     int[]? i1j1 = cwNon0(F, w, h, i, j, i2, j2, 0);
                     if (i1j1 is null)
@@ -337,8 +353,8 @@ namespace RapidOcrNet
 
                     while (true)
                     {
-                        //(3.3) Starting from the next elementof the pixel (i2, j2) 
-                        //in the counterclock- wise order, examine counterclockwise 
+                        //(3.3) Starting from the next element of the pixel (i2, j2) 
+                        //in the counterclockwise order, examine counterclockwise 
                         //the pixels in the neighborhood of the current pixel (i3, j3) 
                         //to find a nonzero pixel and let the first one be (i4, j4).
 
