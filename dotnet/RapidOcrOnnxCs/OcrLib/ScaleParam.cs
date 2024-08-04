@@ -3,19 +3,19 @@ using SkiaSharp;
 
 namespace OcrLiteLib
 {
-    public sealed class ScaleParam
+    public readonly struct ScaleParam
     {
-        public int SrcWidth { get; set; }
+        public int SrcWidth { get; }
 
-        public int SrcHeight { get; set; }
+        public int SrcHeight { get; }
 
-        public int DstWidth { get; set; }
+        public int DstWidth { get; }
 
-        public int DstHeight { get; set; }
+        public int DstHeight { get; }
 
-        public float ScaleWidth { get; set; }
+        public float ScaleWidth { get; }
 
-        public float ScaleHeight { get; set; }
+        public float ScaleHeight { get; }
 
         public ScaleParam(int srcWidth, int srcHeight, int dstWidth, int dstHeight, float scaleWidth, float scaleHeight)
         {
@@ -29,27 +29,25 @@ namespace OcrLiteLib
 
         public override string ToString()
         {
-            return $"sw:{this.SrcWidth},sh:{this.SrcHeight},dw:{this.DstWidth},dh:{this.DstHeight},{this.ScaleWidth},{this.ScaleHeight}";
+            return $"sw:{SrcWidth},sh:{SrcHeight},dw:{DstWidth},dh:{DstHeight},{ScaleWidth},{ScaleHeight}";
         }
 
         public static ScaleParam GetScaleParam(SKBitmap src, int dstSize)
         {
-            int srcWidth, srcHeight, dstWidth, dstHeight;
-            srcWidth = src.Width;
-            dstWidth = src.Width;
-            srcHeight = src.Height;
-            dstHeight = src.Height;
+            int srcWidth = src.Width;
+            int dstWidth = src.Width;
+            int srcHeight = src.Height;
+            int dstHeight = src.Height;
 
-            float scale = 1.0F;
             if (dstWidth > dstHeight)
             {
-                scale = dstSize / (float)dstWidth;
+                float scale = dstSize / (float)dstWidth;
                 dstWidth = dstSize;
                 dstHeight = (int)(dstHeight * scale);
             }
             else
             {
-                scale = dstSize / (float)dstHeight;
+                float scale = dstSize / (float)dstHeight;
                 dstHeight = dstSize;
                 dstWidth = (int)(dstWidth * scale);
             }
