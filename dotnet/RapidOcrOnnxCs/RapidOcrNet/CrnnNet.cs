@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using SkiaSharp;
@@ -9,17 +10,13 @@ namespace RapidOcrNet
     {
         private readonly float[] MeanValues = [127.5F, 127.5F, 127.5F];
         private readonly float[] NormValues = [1.0F / 127.5F, 1.0F / 127.5F, 1.0F / 127.5F];
-        private const int crnnDstHeight = 48;
-        private const int crnnCols = 6625;
+        private const int CrnnDstHeight = 48;
+        //private const int CrnnCols = 6625;
 
         private InferenceSession _crnnNet;
-        private List<string> _keys;
-        private List<string> _inputNames;
-
-        public CrnnNet()
-        {
-        }
-
+        private IReadOnlyList<string> _keys;
+        private string _inputName; // private List<string> _inputNames;
+        
         ~CrnnNet()
         {
             _crnnNet.Dispose();
@@ -37,61 +34,64 @@ namespace RapidOcrNet
                 };
 
                 _crnnNet = new InferenceSession(path, op);
-                _inputNames = _crnnNet.InputMetadata.Keys.ToList();
+                _inputName = _crnnNet.InputMetadata.Keys.First(); // _inputNames = _crnnNet.InputMetadata.Keys.ToList();
                 _keys = InitKeys(keysPath);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                throw ex;
+                throw;
             }
         }
 
-        private List<string> InitKeys(string path)
+        private static IReadOnlyList<string> InitKeys(string path)
         {
-            StreamReader sr = new StreamReader(path, Encoding.UTF8);
-            List<string> keys = new List<string> { "#" };
-            string line;
-            while ((line = sr.ReadLine()) != null)
+            using (var sr = new StreamReader(path, Encoding.UTF8))
             {
-                //System.Diagnostics.Debug.WriteLine(line.ToString());
-                keys.Add(line);
-            }
+                List<string> keys = ["#"];
 
-            keys.Add(" ");
-            System.Diagnostics.Debug.WriteLine($"keys Size = {keys.Count}");
-            return keys;
+                string line;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    keys.Add(line);
+                }
+
+                keys.Add(" ");
+                System.Diagnostics.Debug.WriteLine($"keys Size = {keys.Count}");
+
+                return keys;
+            }
         }
 
         public List<TextLine> GetTextLines(IReadOnlyList<SKBitmap> partImgs)
         {
+            var sw = new Stopwatch();
             List<TextLine> textLines = new List<TextLine>();
-            for (int i = 0; i < partImgs.Count; i++)
+            foreach (var i in partImgs)
             {
-                var startTicks = DateTime.Now.Ticks;
-                var textLine = GetTextLine(partImgs[i]);
-                var endTicks = DateTime.Now.Ticks;
-                textLine.Time = (endTicks - startTicks) / 10000F;
+                sw.Restart();
+                var textLine = GetTextLine(i);
+                textLine.Time = sw.ElapsedMilliseconds;
                 textLines.Add(textLine);
             }
-
+            
             return textLines;
         }
 
         private TextLine GetTextLine(SKBitmap src)
         {
-            float scale = crnnDstHeight / (float)src.Height;
+            float scale = CrnnDstHeight / (float)src.Height;
             int dstWidth = (int)(src.Width * scale);
 
             Tensor<float> inputTensors;
-            using (SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, crnnDstHeight), SKFilterQuality.High))
+            using (SKBitmap srcResize = src.Resize(new SKSizeI(dstWidth, CrnnDstHeight), SKFilterQuality.High))
             {
                 inputTensors = OcrUtils.SubtractMeanNormalize(srcResize, MeanValues, NormValues);
             }
-
-            var inputs = new List<NamedOnnxValue>
+            
+            IReadOnlyCollection<NamedOnnxValue> inputs = new List<NamedOnnxValue>
             {
-                NamedOnnxValue.CreateFromTensor(_inputNames[0], inputTensors)
+                NamedOnnxValue.CreateFromTensor(_inputName, inputTensors)
             };
 
             try
