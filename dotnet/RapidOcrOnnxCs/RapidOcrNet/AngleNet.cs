@@ -94,7 +94,7 @@ namespace RapidOcrNet
                 inputTensors = OcrUtils.SubtractMeanNormalize(angleImg, MeanValues, NormValues);
             }
 
-            var inputs = new List<NamedOnnxValue>
+            IReadOnlyCollection<NamedOnnxValue> inputs = new List<NamedOnnxValue>
             {
                 NamedOnnxValue.CreateFromTensor(_inputName, inputTensors)
             };
