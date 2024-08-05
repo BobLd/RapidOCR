@@ -531,11 +531,14 @@ namespace PContourNet
                 return polyline;
             }
 
+            var first = polyline[0];
+            var last = polyline[polyline.Length - 1];
+
             float dmax = 0;
             int argmax = -1;
             for (int i = 1; i < polyline.Length - 1; i++)
             {
-                float d = PointDistanceToSegment(polyline[i], polyline[0], polyline[polyline.Length - 1]);
+                float d = PointDistanceToSegment(polyline[i], first, last);
                 if (d > dmax)
                 {
                     dmax = d;
@@ -545,15 +548,16 @@ namespace PContourNet
 
             int p = 0;
             Span<SKPointI> ret = new SKPointI[polyline.Length];
+
             if (dmax > epsilon)
             {
                 ReadOnlySpan<SKPointI> L = ApproxPolyDP(polyline.SubList(0, argmax + 1), epsilon);
-                ReadOnlySpan<SKPointI> R = ApproxPolyDP(polyline.SubList(argmax, polyline.Length), epsilon);
                 foreach (var l in L.SubList(0, L.Length - 1))
                 {
                     ret[p++] = l;
                 }
 
+                ReadOnlySpan<SKPointI> R = ApproxPolyDP(polyline.SubList(argmax, polyline.Length), epsilon);
                 foreach (var r in R)
                 {
                     ret[p++] = r;
@@ -561,8 +565,8 @@ namespace PContourNet
             }
             else
             {
-                ret[p++] = polyline[0];
-                ret[p++] = polyline[polyline.Length - 1];
+                ret[p++] = first;
+                ret[p++] = last;
             }
 
             return ret.Slice(0, p);
