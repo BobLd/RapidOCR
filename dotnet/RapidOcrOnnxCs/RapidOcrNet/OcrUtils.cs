@@ -123,11 +123,11 @@ namespace RapidOcrNet
             {
                 if (v < top)
                 {
-                    left = v;
+                    top = v;
                 }
                 else if (v > bottom)
                 {
-                    right = v;
+                    bottom = v;
                 }
             }
 

@@ -177,7 +177,7 @@ namespace RapidOcrNet
                     }
 
                     var finalPoints = new SKPointI[clipMinBox.Length];
-                    for (int j = 0; j <= clipMinBox.Length; j++)
+                    for (int j = 0; j < clipMinBox.Length; j++)
                     {
                         var item = clipMinBox[j];
                         int x = (int)(item.X / s.ScaleWidth);

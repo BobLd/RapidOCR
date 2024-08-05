@@ -146,7 +146,7 @@ namespace RapidOcrNet
             }
 
             textLine.Text = sb.ToString();
-            textLine.CharScores = scores;
+            textLine.CharScores = scores.ToArray();
             return textLine;
         }
     }

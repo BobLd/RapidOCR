@@ -7,7 +7,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OcrOnnxForm", "OcrOnnxForm\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OcrLib", "OcrLib\OcrLib.csproj", "{AB10D356-2D95-4460-96CA-9A7129AD0A76}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RapidOcrNet", "RapidOcrNet\RapidOcrNet.csproj", "{B0555228-774B-4708-9EF0-81A1784B2E47}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RapidOcrNet", "RapidOcrNet\RapidOcrNet.csproj", "{B0555228-774B-4708-9EF0-81A1784B2E47}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RapidOcrNet.ConsoleApp", "RapidOcrNet.ConsoleApp\RapidOcrNet.ConsoleApp.csproj", "{8F15D78E-2F82-48A4-B9D9-03692380125D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +43,14 @@ Global
 		{B0555228-774B-4708-9EF0-81A1784B2E47}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B0555228-774B-4708-9EF0-81A1784B2E47}.Release|x64.ActiveCfg = Release|Any CPU
 		{B0555228-774B-4708-9EF0-81A1784B2E47}.Release|x64.Build.0 = Release|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Debug|x64.Build.0 = Debug|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Release|x64.ActiveCfg = Release|Any CPU
+		{8F15D78E-2F82-48A4-B9D9-03692380125D}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
