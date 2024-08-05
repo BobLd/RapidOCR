@@ -60,7 +60,7 @@ namespace RapidOcrNet
             return minSize / 1000 + 2;
         }
 
-        public static IEnumerable<SKBitmap> GetPartImages(SKBitmap src, List<TextBox> textBoxes)
+        public static IEnumerable<SKBitmap> GetPartImages(SKBitmap src, IReadOnlyList<TextBox> textBoxes)
         {
             for (int i = 0; i < textBoxes.Count; ++i)
             {
@@ -99,10 +99,8 @@ namespace RapidOcrNet
             return new SKMatrix(scaleX, skewX, transX, skewY, scaleY, transY, persp0, persp1, persp2);
         }
 
-        public static SKBitmap GetRotateCropImage(SKBitmap src, List<SKPointI> box)
+        public static SKBitmap GetRotateCropImage(SKBitmap src, SKPointI[] box)
         {
-            Span<SKPointI> points = box.ToArray();
-
             ReadOnlySpan<int> collectX = stackalloc int[] { box[0].X, box[1].X, box[2].X, box[3].X };
             int left = int.MaxValue;
             int right = int.MinValue;
@@ -145,23 +143,23 @@ namespace RapidOcrNet
                 throw new Exception("Could not extract subset.");
             }
 
-            for (int i = 0; i < points.Length; i++)
+            for (int i = 0; i < box.Length; i++)
             {
-                var pt = points[i];
+                var pt = box[i];
                 pt.X -= left;
                 pt.Y -= top;
-                points[i] = pt;
+                box[i] = pt;
             }
 
-            int imgCropWidth = (int)Math.Sqrt(Math.Pow(points[0].X - points[1].X, 2) +
-                                              Math.Pow(points[0].Y - points[1].Y, 2));
-            int imgCropHeight = (int)Math.Sqrt(Math.Pow(points[0].X - points[3].X, 2) +
-                                               Math.Pow(points[0].Y - points[3].Y, 2));
+            int imgCropWidth = (int)Math.Sqrt(Math.Pow(box[0].X - box[1].X, 2) +
+                                              Math.Pow(box[0].Y - box[1].Y, 2));
+            int imgCropHeight = (int)Math.Sqrt(Math.Pow(box[0].X - box[3].X, 2) +
+                                               Math.Pow(box[0].Y - box[3].Y, 2));
 
-            var ptsSrc0Sk = new SKPoint(points[0].X, points[0].Y);
-            var ptsSrc1Sk = new SKPoint(points[1].X, points[1].Y);
-            var ptsSrc2Sk = new SKPoint(points[2].X, points[2].Y);
-            var ptsSrc3Sk = new SKPoint(points[3].X, points[3].Y);
+            var ptsSrc0Sk = new SKPoint(box[0].X, box[0].Y);
+            var ptsSrc1Sk = new SKPoint(box[1].X, box[1].Y);
+            var ptsSrc2Sk = new SKPoint(box[2].X, box[2].Y);
+            var ptsSrc3Sk = new SKPoint(box[3].X, box[3].Y);
 
             var m = GetPerspectiveTransform(ptsSrc0Sk, ptsSrc1Sk, ptsSrc2Sk, ptsSrc3Sk, imgCropWidth, imgCropHeight);
 

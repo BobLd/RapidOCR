@@ -6,17 +6,10 @@ namespace RapidOcrNet
 {
     public sealed class OcrLite
     {
-        private readonly DbNet _dbNet;
-        private readonly AngleNet _angleNet;
-        private readonly CrnnNet _crnnNet;
-
-        public OcrLite()
-        {
-            _dbNet = new DbNet();
-            _angleNet = new AngleNet();
-            _crnnNet = new CrnnNet();
-        }
-
+        private readonly DbNet _dbNet = new DbNet();
+        private readonly AngleNet _angleNet = new AngleNet();
+        private readonly CrnnNet _crnnNet = new CrnnNet();
+        
         public void InitModels(string detPath, string clsPath, string recPath, string keysPath, int numThread)
         {
             try
@@ -28,7 +21,7 @@ namespace RapidOcrNet
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(ex.Message + ex.StackTrace);
-                throw ex;
+                throw;
             }
         }
 
@@ -77,7 +70,12 @@ namespace RapidOcrNet
             var dbNetTime = sw.ElapsedMilliseconds;
 
             System.Diagnostics.Debug.WriteLine($"TextBoxesSize({textBoxes.Count})");
-            textBoxes.ForEach(x => System.Diagnostics.Debug.WriteLine(x));
+#if DEBUG
+            foreach (var x in  textBoxes)
+            {
+                Debug.WriteLine(x);
+            }
+#endif
 
             //---------- getPartImages ----------
             SKBitmap[] partImages = OcrUtils.GetPartImages(src, textBoxes).ToArray();
@@ -102,28 +100,34 @@ namespace RapidOcrNet
                 bmp.Dispose();
             }
 
-            List<TextBlock> textBlocks = new List<TextBlock>();
+            var textBlocks = new TextBlock[textLines.Count];
             for (int i = 0; i < textLines.Count; ++i)
             {
-                var textBlock = new TextBlock
+                var textBox = textBoxes[i];
+                var angle = angles[i];
+                var textLine = textLines[i];
+
+                textBlocks[i] = new TextBlock
                 {
-                    BoxPoints = textBoxes[i].Points,
-                    BoxScore = textBoxes[i].Score,
-                    AngleIndex = angles[i].Index,
-                    AngleScore = angles[i].Score,
-                    AngleTime = angles[i].Time,
-                    Text = textLines[i].Text,
-                    CharScores = textLines[i].CharScores,
-                    CrnnTime = textLines[i].Time,
-                    BlockTime = angles[i].Time + textLines[i].Time
+                    BoxPoints = textBox.Points,
+                    BoxScore = textBox.Score,
+                    AngleIndex = angle.Index,
+                    AngleScore = angle.Score,
+                    AngleTime = angle.Time,
+                    Text = textLine.Text,
+                    CharScores = textLine.CharScores,
+                    CrnnTime = textLine.Time,
+                    BlockTime = angle.Time + textLine.Time
                 };
-                textBlocks.Add(textBlock);
             }
 
             var fullDetectTime = sw.ElapsedMilliseconds;
 
-            StringBuilder strRes = new StringBuilder();
-            textBlocks.ForEach(x => strRes.AppendLine(x.Text));
+            var strRes = new StringBuilder();
+            foreach (var x in textBlocks)
+            {
+                strRes.AppendLine(x.Text);
+            }
 
             return new OcrResult
             {

@@ -357,7 +357,7 @@ namespace RapidOcrNet
                     if (!cwNon0(F, w, h, i, j, i2, j2, 0, out int i1, out int j1))
                     {
                         F[i * w + j] = -nbd;
-                        //go to (4)
+                        // go to (4)
                         if (F[i * w + j] != 1)
                         {
                             lnbd = Math.Abs(F[i * w + j]);

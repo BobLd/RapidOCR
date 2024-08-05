@@ -40,7 +40,7 @@ namespace RapidOcrNet
             }
         }
 
-        public List<TextBox> GetTextBoxes(SKBitmap src, ScaleParam scale, float boxScoreThresh, float boxThresh,
+        public IReadOnlyList<TextBox> GetTextBoxes(SKBitmap src, ScaleParam scale, float boxScoreThresh, float boxThresh,
             float unClipRatio)
         {
             Tensor<float> inputTensors;
@@ -90,10 +90,10 @@ namespace RapidOcrNet
             return found;
         }
 
-        private static List<TextBox> GetTextBoxes(DisposableNamedOnnxValue outputTensor, int rows, int cols, ScaleParam s, float boxScoreThresh, float boxThresh, float unClipRatio)
+        private static IReadOnlyList<TextBox> GetTextBoxes(DisposableNamedOnnxValue outputTensor, int rows, int cols, ScaleParam s, float boxScoreThresh, float boxThresh, float unClipRatio)
         {
             const float maxSideThresh = 3.0f; // Long Edge Threshold
-            List<TextBox> rsBoxes = new List<TextBox>();
+            var rsBoxes = new List<TextBox>();
 
             //-----Data preparation-----
             float[] predData = outputTensor.AsEnumerable<float>().ToArray();
@@ -142,30 +142,30 @@ namespace RapidOcrNet
                 }
             }
 
-            using (SKImage predMatImage = SKImage.FromPixelCopy(gray8, predDataBytes))
+            using (SKImage predImage = SKImage.FromPixelCopy(gray8, predDataBytes))
             {
                 for (int i = 0; i < contours.Length; i++)
                 {
-                    if (contours[i].Length <= 2)
+                    var contour = contours[i];
+                    if (contour.Length <= 2)
                     {
                         continue;
                     }
 
-                    float maxSide = 0;
-                    SKPoint[] minBox = GetMiniBox(contours[i], out maxSide);
+                    SKPoint[] minBox = GetMiniBox(contour, out float maxSide);
                     if (maxSide < maxSideThresh)
                     {
                         continue;
                     }
 
-                    double score = GetScore(contours[i], predMatImage);
+                    double score = GetScore(contour, predImage);
                     if (score < boxScoreThresh)
                     {
                         continue;
                     }
 
-                    SKPointI[] clipBox = Unclip(minBox, unClipRatio);
-                    if (clipBox == null)
+                    SKPointI[]? clipBox = Unclip(minBox, unClipRatio);
+                    if (clipBox is null)
                     {
                         continue;
                     }
@@ -176,16 +176,17 @@ namespace RapidOcrNet
                         continue;
                     }
 
-                    List<SKPointI> finalPoints = new List<SKPointI>();
-                    foreach (var item in clipMinBox)
+                    var finalPoints = new SKPointI[clipMinBox.Length];
+                    for (int j = 0; j <= clipMinBox.Length; j++)
                     {
+                        var item = clipMinBox[j];
                         int x = (int)(item.X / s.ScaleWidth);
                         int ptx = Math.Min(Math.Max(x, 0), s.SrcWidth);
 
                         int y = (int)(item.Y / s.ScaleHeight);
                         int pty = Math.Min(Math.Max(y, 0), s.SrcHeight);
 
-                        finalPoints.Add(new SKPointI(ptx, pty));
+                        finalPoints[j] = new SKPointI(ptx, pty);
                     }
 
                     var textBox = new TextBox
@@ -238,22 +239,6 @@ namespace RapidOcrNet
 
         public static int CompareByX(SKPoint left, SKPoint right)
         {
-            /*
-            if (left == null && right == null)
-            {
-                return 1;
-            }
-
-            if (left == null)
-            {
-                return 0;
-            }
-
-            if (right == null)
-            {
-                return 1;
-            }
-            */
             if (left.X > right.X)
             {
                 return 1;
@@ -374,7 +359,7 @@ namespace RapidOcrNet
             return 0;
         }
 
-        private static SKPointI[] Unclip(SKPoint[] box, float unclipRatio)
+        private static SKPointI[]? Unclip(SKPoint[] box, float unclipRatio)
         {
             SKPoint[] points = GeometryExtensionsF.MinimumAreaRectangle(box);
             var size = GeometryExtensions.GetSize(points);

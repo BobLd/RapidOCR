@@ -5,7 +5,7 @@ namespace RapidOcrNet
 {
     public sealed class TextBox
     {
-        public List<SKPointI> Points { get; set; }
+        public SKPointI[] Points { get; set; }
         public float Score { get; set; }
 
         public override string ToString()
@@ -30,28 +30,31 @@ namespace RapidOcrNet
     public sealed class TextLine
     {
         public string Text { get; set; }
-        public List<float> CharScores { get; set; }
+        public float[] CharScores { get; set; }
         public float Time { get; set; }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            CharScores.ForEach(x => sb.Append($"{x},"));
+            foreach (var x in CharScores)
+            {
+                sb.Append($"{x},");
+            }
             return $"TextLine[Text({Text}),CharScores({sb.ToString()}),Time({Time}ms)]";
         }
     }
 
     public sealed class TextBlock
     {
-        public List<SKPointI> BoxPoints { get; set; }
-        public float BoxScore { get; set; }
-        public int AngleIndex { get; set; }
-        public float AngleScore { get; set; }
-        public float AngleTime { get; set; }
-        public string Text { get; set; }
-        public List<float> CharScores { get; set; }
-        public float CrnnTime { get; set; }
-        public float BlockTime { get; set; }
+        public SKPointI[] BoxPoints { get; init; }
+        public float BoxScore { get; init; }
+        public int AngleIndex { get; init; }
+        public float AngleScore { get; init; }
+        public float AngleTime { get; init; }
+        public string Text { get; init; }
+        public float[] CharScores { get; init; }
+        public float CrnnTime { get; init; }
+        public float BlockTime { get; init; }
 
         public override string ToString()
         {
@@ -64,7 +67,11 @@ namespace RapidOcrNet
             string angle = $"│   ├──{header}[Index({AngleIndex}), Score({AngleScore}), Time({AngleTime}ms)]";
             sb.AppendLine(angle);
             StringBuilder sbScores = new StringBuilder();
-            CharScores.ForEach(x => sbScores.Append($"{x},"));
+            foreach (var x in CharScores)
+            {
+                sbScores.Append($"{x},");
+            }
+
             string textLine = $"│   ├──TextLine[Text({Text}),CharScores({sbScores.ToString()}),Time({CrnnTime}ms)]";
             sb.AppendLine(textLine);
             sb.AppendLine($"│   └──BlockTime({BlockTime}ms)");
@@ -74,7 +81,7 @@ namespace RapidOcrNet
 
     public sealed class OcrResult
     {
-        public List<TextBlock> TextBlocks { get; set; }
+        public TextBlock[] TextBlocks { get; set; }
         public float DbNetTime { get; set; }
         //public Mat BoxImg { get; set; }
         public float DetectTime { get; set; }
@@ -84,7 +91,10 @@ namespace RapidOcrNet
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("OcrResult");
-            TextBlocks.ForEach(x => sb.Append(x));
+            foreach (var x in TextBlocks)
+            {
+                sb.Append(x);
+            }
             sb.AppendLine($"├─DbNetTime({DbNetTime}ms)");
             sb.AppendLine($"├─DetectTime({DetectTime}ms)");
             sb.AppendLine($"└─StrRes({StrRes})");
