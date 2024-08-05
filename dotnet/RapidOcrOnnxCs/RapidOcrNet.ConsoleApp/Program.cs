@@ -4,7 +4,7 @@
     {
         private const string _modelsFolderName = "models";
 
-        private static readonly int _numThreadNumeric = Environment.ProcessorCount;
+        private static readonly int _numThreadNumeric = 8; //Environment.ProcessorCount;
         private static int padding = 50;
         private static int imgResize = 1024;
         private static float boxScoreThresh = 0.5f;
@@ -15,9 +15,12 @@
 
         static void Main(string[] args)
         {
-            string targetImg = "C:\\Users\\Bob\\Document Layout Analysis\\text samples\\__test.png";
+            if (args is null || args.Length == 0)
+            {
+                args = new string[] { "1997.png" };
+            }
 
-            Console.WriteLine("Hello, World!");
+            Console.WriteLine("Hello, RapidOcrNet!");
             string detPath = Path.Combine(_modelsFolderName, "en_PP-OCRv3_det_infer.onnx");
             string clsPath = Path.Combine(_modelsFolderName , "ch_ppocr_mobile_v2.0_cls_infer.onnx");
             string recPath = Path.Combine(_modelsFolderName, "en_PP-OCRv3_rec_infer.onnx");
@@ -46,10 +49,23 @@
             var ocrEngin = new OcrLite();
             ocrEngin.InitModels(detPath, clsPath, recPath, keysPath, _numThreadNumeric);
 
+            foreach (var path in args)
+            {
+                ProcessImage(ocrEngin, path);
+            }
+
+            Console.WriteLine("Bye, RapidOcrNet!");
+            Console.ReadKey();
+        }
+
+        static void ProcessImage(OcrLite ocrEngin, string targetImg)
+        {
+            Console.WriteLine($"Processing {targetImg}");
             OcrResult ocrResult = ocrEngin.Detect(targetImg, padding, imgResize, boxScoreThresh, boxThresh, unClipRatio, doAngle, mostAngle);
 
             Console.WriteLine(ocrResult.ToString());
             Console.WriteLine(ocrResult.StrRes);
+            Console.WriteLine();
         }
     }
 }
